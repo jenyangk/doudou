@@ -179,9 +179,15 @@ export default function Board({ params, searchParams }: { params: { slug: string
         const { data, error } = await supabase
             .from('votes')
             .delete()
+            .eq('sessionId', session?.id)
             .eq('imageId', imageId)
             .eq('userId', user?.id)
             .select('*')
+
+        if (error || !data) {
+            toast.error('Error deleting vote. Please try again');
+            return;
+        }
     }
 
     const handleVote = async (imageId: number) => {
