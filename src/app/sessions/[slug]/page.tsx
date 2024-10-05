@@ -52,31 +52,27 @@ export default function Board({ params, searchParams }: { params: { slug: string
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [numberOfVotes, setNumberOfVotes] = useState(0);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [userVoted, setUserVoted] = useState<Vote[]>([]);
 
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
-        const fetchUser = async () => {
-            if (searchParams.username !== '') {
-                const { data, error } = await supabase
+        const fetchSession = async () => {
+            if (searchParams.username !== '' && params.slug !== '') {
+                const userData = await supabase
                     .from('session_users')
                     .select('*, sessions!inner(sessionCode)')
                     .eq('username', searchParams.username)
                     .eq('sessions.sessionCode', params.slug)
                     .single();
 
-                if (error || !data) {
+                if (userData.error || !userData.data) {
                     toast.error('Error fetching user session. Please try again');
                     return;
                 }
 
-                setUser(data as User);
+                setUser(userData.data as User);
                 setIsLoggedIn(true);
-            }
-        }
-
-        const fetchSession = async () => {
-            if (params.slug !== '') {
                 const { data, error } = await supabase
                     .from('sessions')
                     .select('*, session_users(username)')
@@ -101,6 +97,19 @@ export default function Board({ params, searchParams }: { params: { slug: string
 
                 setImages(sessionImages.data as Image[]);
 
+                const sessionVotes = await supabase
+                    .from('votes')
+                    .select('*')
+                    .eq('sessionId', sessionData.id)
+                    .eq('userId', userData.data?.id)
+
+                if (sessionVotes.error || !sessionVotes.data) {
+                    toast.error('Error fetching session votes. Please try again');
+                    return;
+                }
+
+                setUserVoted(sessionVotes.data as Vote[]);
+
                 const imageChannel = supabase
                     .channel('session_images')
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'session_images', filter: `sessionId=eq.${sessionData?.id}` }, handleImageInsert)
@@ -108,8 +117,11 @@ export default function Board({ params, searchParams }: { params: { slug: string
 
                 const votesChannel = supabase
                     .channel('votes')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `sessionId=eq.${sessionData?.id}` }, handleVoteInsert)
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `(sessionId=eq.${sessionData?.id} and userId=eq.${userData.data?.id})` }, handleVoteInsert)
 
+                const votesDeleteChannel = supabase
+                    .channel('votes')
+                    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'votes', filter: `(sessionId=eq.${sessionData?.id} and userId=eq.${userData.data?.id})` }, handleVoteDelete)
 
                 const sessionChannel = supabase
                     .channel('sessions')
@@ -120,7 +132,6 @@ export default function Board({ params, searchParams }: { params: { slug: string
             }
         }
 
-        fetchUser();
         fetchSession();
     }, [])
 
@@ -153,6 +164,37 @@ export default function Board({ params, searchParams }: { params: { slug: string
     const handleVoteInsert = (payload: any) => {
         if (payload.new) {
             const votePayload = payload.new as Vote;
+            setUserVoted([...userVoted, votePayload])
+        }
+    }
+
+    const handleVoteDelete = (payload: any) => {
+        if (payload.old) {
+            const votePayload = payload.old as Vote;
+            setUserVoted(userVoted.filter(vote => vote.id !== votePayload.id))
+        }
+    }
+
+    const handleDeleteVote = async (imageId: number) => {
+        const { data, error } = await supabase
+            .from('votes')
+            .delete()
+            .eq('imageId', imageId)
+            .eq('userId', user?.id)
+            .select('*')
+    }
+
+    const handleVote = async (imageId: number) => {
+        if (isVotingPhase) {
+            const { data, error } = await supabase
+                .from('votes')
+                .insert([{ sessionId: session?.id, imageId: imageId, userId: user?.id, vote: true }])
+                .select('*')
+
+            if (error || !data) {
+                toast.error('Error inserting vote. Please try again');
+                return;
+            }
         }
     }
 
@@ -204,20 +246,6 @@ export default function Board({ params, searchParams }: { params: { slug: string
         }
 
         toast.success('Image uploaded successfully');
-    }
-
-    const handleVote = async (imageId: number) => {
-        if (isVotingPhase) {
-            const { data, error } = await supabase
-                .from('votes')
-                .insert([{ sessionId: session?.id, imageId: imageId, userId: user?.id, vote: true }])
-                .select('*')
-
-            if (error || !data) {
-                toast.error('Error inserting vote. Please try again');
-                return;
-            }
-        }
     }
 
     const renderPhaseControl = () => {
@@ -285,9 +313,9 @@ export default function Board({ params, searchParams }: { params: { slug: string
                     </div>
                 )}
                 <h2 className="text-2xl font-semibold mt-4 mb-2">Gallery</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-2 justify-items-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 justify-items-center">
                     {images !== null && images.map(image => (
-                        <div key={image.id} className="border rounded-lg p-4 w-min">
+                        <div key={image.id} className="border rounded-lg p-4 w-min flex flex-col justify-between">
                             <Image
                                 src={image.url}
                                 alt="Uploaded photo"
@@ -296,9 +324,14 @@ export default function Board({ params, searchParams }: { params: { slug: string
                                 className="mb-4 cursor-pointer min-w-64"
                                 onClick={() => setSelectedImage(image)}
                             />
-                            {isVotingPhase && (
-                                <Button className='w-full' onClick={() => handleVote(image.id)}>
+                            {isVotingPhase && userVoted.filter(vote => vote.imageId === image.id).length === 0 && userVoted.length < (session?.maxVoteAmount ?? 3) && (
+                                <Button className='w-full self-end' onClick={() => handleVote(image.id)}>
                                     Vote
+                                </Button>
+                            )}
+                            {isVotingPhase && userVoted.filter(vote => vote.imageId === image.id).length === 1 && (
+                                <Button className='w-full self-end' onClick={() => handleDeleteVote(image.id)}>
+                                    Remove Vote
                                 </Button>
                             )}
                         </div>
