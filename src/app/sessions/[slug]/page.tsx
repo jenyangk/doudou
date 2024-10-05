@@ -135,16 +135,18 @@ export default function Board({ params, searchParams }: { params: { slug: string
     const handleSessionUpdate = (payload: any) => {
         if (payload.new) {
             const sessionPayload = payload.new as Session;
+            setIsUploadPhase(sessionPayload.isUploadPhase);
+            setIsVotingPhase(sessionPayload.isVotingPhase);
 
-            if (sessionPayload.isUploadPhase !== isUploadPhase) {
-                toast.warning(`Uploads are now ${sessionPayload.isUploadPhase ? 'unlocked' : 'locked'}`);
-                setIsUploadPhase(sessionPayload.isUploadPhase);
-            }
+            // if (sessionPayload.isUploadPhase !== isUploadPhase) {
+            //     toast.warning(`Uploads are now ${sessionPayload.isUploadPhase ? 'unlocked' : 'locked'}`);
+            //     setIsUploadPhase(sessionPayload.isUploadPhase);
+            // }
 
-            if (sessionPayload.isVotingPhase !== isVotingPhase) {
-                toast.warning(`Voting is now ${sessionPayload.isVotingPhase ? 'unlocked' : 'locked'}`);
-                setIsVotingPhase(sessionPayload.isVotingPhase);
-            }
+            // if (sessionPayload.isVotingPhase !== isVotingPhase) {
+            //     toast.warning(`Voting is now ${sessionPayload.isVotingPhase ? 'unlocked' : 'locked'}`);
+            //     setIsVotingPhase(sessionPayload.isVotingPhase);
+            // }
         }
     }
 
@@ -259,7 +261,7 @@ export default function Board({ params, searchParams }: { params: { slug: string
                     User: {searchParams.username}
                 </span>
             </header>
-            <div className="container mx-auto px-4 py-8">
+            <div className="container mx-auto px-4 py-2">
                 {renderPhaseControl()}
                 {isUploadPhase && images.filter(image => image.userId === user?.id).length < (session?.maxUpload ?? 1) && (
                     <div className="mb-8">
@@ -283,15 +285,15 @@ export default function Board({ params, searchParams }: { params: { slug: string
                     </div>
                 )}
                 <h2 className="text-2xl font-semibold mt-4 mb-2">Gallery</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-2 justify-items-center">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-2 justify-items-center">
                     {images !== null && images.map(image => (
                         <div key={image.id} className="border rounded-lg p-4 w-min">
                             <Image
                                 src={image.url}
                                 alt="Uploaded photo"
-                                width={160}
-                                height={160}
-                                className="mb-4 cursor-pointer min-w-40"
+                                width={256}
+                                height={256}
+                                className="mb-4 cursor-pointer min-w-64"
                                 onClick={() => setSelectedImage(image)}
                             />
                             {isVotingPhase && (
