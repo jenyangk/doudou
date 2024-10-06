@@ -33,7 +33,7 @@ export default function RootLayout({
         className={`${rubik.className} $antialiased`}
       >
         {children}
-        <Toaster />
+        <Toaster richColors />
       </body>
     </html>
   );

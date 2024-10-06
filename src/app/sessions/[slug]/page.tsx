@@ -109,6 +109,7 @@ export default function Board({ params, searchParams }: { params: { slug: string
                 }
 
                 setUserVoted(sessionVotes.data as Vote[]);
+                console.log("User Voted", userVoted);   
 
                 const imageChannel = supabase
                     .channel('session_images')
@@ -136,6 +137,7 @@ export default function Board({ params, searchParams }: { params: { slug: string
     }, [])
 
     const handleImageInsert = (payload: any) => {
+        console.log("handleImageInsert", payload);
         if (payload.new) {
             const imagePayload = payload.new as Image;
             toast.info(`${imagePayload.userId}, have uploaded a new image!`);
@@ -205,7 +207,8 @@ export default function Board({ params, searchParams }: { params: { slug: string
                 return;
             }
 
-            setUserVoted([...userVoted, { sessionId: session?.id, imageId: imageId, userId: user?.id, id: data[0].id }])
+            console.log("User Voted", data);
+            setUserVoted([...userVoted, { sessionId: session?.id, imageId: imageId, userId: user?.id, id: data.id }])
         }
     }
 
@@ -323,7 +326,8 @@ export default function Board({ params, searchParams }: { params: { slug: string
                         </div>
                     </div>
                 )}
-                <h2 className="text-2xl font-semibold mt-4 mb-2">Gallery</h2>
+                <h2 className="text-2xl font-semibold mt-4">Gallery</h2>
+                <p className='text-sm text-gray-400 mb-2'>Max Votes: {session?.maxVoteAmount}</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 justify-items-center">
                     {images !== null && images.map(image => (
                         <div key={image.id} className="border rounded-lg p-4 w-min flex flex-col justify-between">
@@ -335,12 +339,12 @@ export default function Board({ params, searchParams }: { params: { slug: string
                                 className="mb-4 cursor-pointer min-w-64"
                                 onClick={() => setSelectedImage(image)}
                             />
-                            {isVotingPhase && userVoted.filter(vote => vote.imageId === image.id).length === 0 && userVoted.length < (session?.maxVoteAmount ?? 3) && (
+                            {isVotingPhase && image.userId !== user?.id && userVoted.filter(vote => vote.imageId === image.id).length === 0 && userVoted.length < (session?.maxVoteAmount ?? 3) && (
                                 <Button className='w-full self-end' onClick={() => handleVote(image.id)}>
                                     Vote
                                 </Button>
                             )}
-                            {isVotingPhase && userVoted.filter(vote => vote.imageId === image.id).length === 1 && (
+                            {isVotingPhase && userVoted.filter(vote => vote.imageId === image.id).length >= 1 && (
                                 <Button className='w-full self-end' onClick={() => handleDeleteVote(image.id)}>
                                     Remove Vote
                                 </Button>

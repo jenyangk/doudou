@@ -57,14 +57,26 @@ export default function Sessions() {
             return;
         }
 
-        const createdUser = await supabase
+        const checkUser = await supabase
             .from('session_users')
-            .insert([{ username, sessionId: session.id }]);
+            .select('*')
+            .eq('sessionId', session.id)
+            .eq('username', username)
+            .maybeSingle();
 
-        if (createdUser.error) {
-            toast.error('Error joining session. Please try again');
-        } else {
+        if (checkUser.data) {
+            toast.success('Rejoining session');
             router.push('/sessions/' + sessionCode + '?username=' + username);
+        } else {
+            const createdUser = await supabase
+                .from('session_users')
+                .insert([{ username, sessionId: session.id }]);
+
+            if (createdUser.error) {
+                toast.error('Error joining session. Please try again');
+            } else {
+                router.push('/sessions/' + sessionCode + '?username=' + username);
+            }
         }
     };
 
