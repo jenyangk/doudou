@@ -101,7 +101,7 @@ export default function Sessions() {
                         <CardContent className="space-y-2">
                             <div className="space-y-1">
                                 <Label htmlFor="name">Username</Label>
-                                <Input id="username" placeholder="@jenyangkoh" required onChange={(e) => setUsername(e.target.value)} />
+                                <Input id="username" placeholder="Put your name in here" required onChange={(e) => setUsername(e.target.value)} />
                             </div>
                             <div className="space-y-1">
                                 <Label htmlFor="username">Session Name</Label>
