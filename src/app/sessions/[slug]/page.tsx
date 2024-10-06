@@ -188,19 +188,24 @@ export default function Board({ params, searchParams }: { params: { slug: string
             toast.error('Error deleting vote. Please try again');
             return;
         }
+
+        setUserVoted(userVoted.filter(vote => vote.imageId !== imageId))
     }
 
     const handleVote = async (imageId: number) => {
-        if (isVotingPhase) {
+        if (isVotingPhase && session?.id && user?.id) {
             const { data, error } = await supabase
                 .from('votes')
                 .insert([{ sessionId: session?.id, imageId: imageId, userId: user?.id, vote: true }])
                 .select('*')
+                .single()
 
             if (error || !data) {
                 toast.error('Error inserting vote. Please try again');
                 return;
             }
+
+            setUserVoted([...userVoted, { sessionId: session?.id, imageId: imageId, userId: user?.id, id: data[0].id }])
         }
     }
 
