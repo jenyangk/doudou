@@ -85,7 +85,7 @@ export default function Sessions() {
             <header className="sticky top-0 flex h-16 items-center gap-4 px-4 md:px-6">
                 <Image src='/icon.png' alt="DouDou" width={32} height={32} />
             </header>
-            <Tabs defaultValue="create_session" className="m-auto max-w-sm flex-auto">
+            <Tabs defaultValue="join_session" className="m-auto max-w-sm flex-auto">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="create_session">Create Session</TabsTrigger>
                     <TabsTrigger value="join_session">Join Session</TabsTrigger>

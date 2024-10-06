@@ -65,6 +65,7 @@ export default function Sessions() {
             .maybeSingle();
 
         if (checkUser.data) {
+            toast.success('Rejoining session');
             router.push('/sessions/' + sessionCode + '?username=' + username);
         } else {
             const createdUser = await supabase
@@ -84,7 +85,7 @@ export default function Sessions() {
             <header className="sticky top-0 flex h-16 items-center gap-4 px-4 md:px-6">
                 <Image src='/icon.png' alt="DouDou" width={32} height={32} />
             </header>
-            <Tabs defaultValue="create_session" className="m-auto max-w-sm flex-auto">
+            <Tabs defaultValue="join_session" className="m-auto max-w-sm flex-auto">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="create_session">Create Session</TabsTrigger>
                     <TabsTrigger value="join_session">Join Session</TabsTrigger>
@@ -100,7 +101,7 @@ export default function Sessions() {
                         <CardContent className="space-y-2">
                             <div className="space-y-1">
                                 <Label htmlFor="name">Username</Label>
-                                <Input id="username" placeholder="@jenyangkoh" required onChange={(e) => setUsername(e.target.value)} />
+                                <Input id="username" placeholder="Put your name in here" required onChange={(e) => setUsername(e.target.value)} />
                             </div>
                             <div className="space-y-1">
                                 <Label htmlFor="username">Session Name</Label>
