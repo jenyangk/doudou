@@ -1,22 +1,26 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, use } from 'react';
 import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Camera, X, Lock, Unlock } from 'lucide-react'
+import { Camera, X, Lock, Unlock, QrCodeIcon, Trophy, TrophyIcon } from 'lucide-react'
 import { PersonIcon, TokensIcon } from '@radix-ui/react-icons'
-import { supabase } from '@/lib/supabaseClient'
-import { toast } from 'sonner'
-import { UploadButton, useUploadThing } from '@/lib/uploadthing'
-import { image } from 'framer-motion/client'
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import QRCodeStyling, { Options } from "qr-code-styling";
 
-interface Image {
+import Uploader from '@/components/Uploader';
+import Profile from '@/components/Profile';
+
+interface SessionImage {
     id: number;
     sessionId: number;
-    userId: number;
+    userId: string;
     url: string;
+    votedByCurrentUser?: boolean;
 }
 
 interface Session {
@@ -26,6 +30,7 @@ interface Session {
     isUploadPhase: boolean;
     maxUpload: number;
     maxVoteAmount: number;
+    createdBy: string;
 }
 
 interface User {
@@ -38,14 +43,17 @@ interface User {
 interface Vote {
     id: number;
     sessionId: number;
-    userId: number;
+    userId: string;
     imageId: number;
 }
 
-export default function Board({ params, searchParams }: { params: { slug: string }; searchParams: { username: string, isCreator: boolean } }) {
-    const [images, setImages] = useState<Image[]>([]);
-    const [selectedImage, setSelectedImage] = useState<Image | null>(null);
-    const [user, setUser] = useState<User | null>(null);
+export default function Board(
+    props: { params: Promise<{ slug: string }> }
+) {
+    const params = use(props.params);
+    const [images, setImages] = useState<SessionImage[]>([]);
+    const [selectedImage, setSelectedImage] = useState<SessionImage | null>(null);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [isUploadPhase, setIsUploadPhase] = useState(false);
     const [isVotingPhase, setIsVotingPhase] = useState(true);
@@ -53,29 +61,44 @@ export default function Board({ params, searchParams }: { params: { slug: string
     const [numberOfVotes, setNumberOfVotes] = useState(0);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [userVoted, setUserVoted] = useState<Vote[]>([]);
+    const [isOwner, setIsOwner] = useState<boolean>(false);
 
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [isQRVisible, setIsQRVisible] = useState<boolean>(false);
+    // const [qrCode] = useState<QRCodeStyling>(new QRCodeStyling(({
+    //     width: 512,
+    //     height: 512,
+    //     data: `https://doudou.muniee.com/sessions/${params.slug}`,
+    //     image: '/icon-large.png',
+    //     dotsOptions: {
+    //         color: "#000000",
+    //         type: "dots",
+    //     }
+    // })));
+    const qrCodeRef = useRef<HTMLDivElement>(null);
+
+    // useEffect(() => {
+    //     if (qrCodeRef.current) {
+    //         qrCode?.append(qrCodeRef.current);
+    //     }
+    // }, [isQRVisible, qrCodeRef]);
 
     useEffect(() => {
         const fetchSession = async () => {
-            if (searchParams.username !== '' && params.slug !== '') {
-                const userData = await supabase
-                    .from('session_users')
-                    .select('*, sessions!inner(sessionCode)')
-                    .eq('username', searchParams.username)
-                    .eq('sessions.sessionCode', params.slug)
-                    .single();
+            if (params.slug !== '') {
+                let user = (await supabase.auth.getUser()).data.user;
+                setCurrentUserId(user?.id ?? null);
 
-                if (userData.error || !userData.data) {
+                if (user?.id === null) {
                     toast.error('Error fetching user session. Please try again');
                     return;
                 }
-
-                setUser(userData.data as User);
                 setIsLoggedIn(true);
+
                 const { data, error } = await supabase
                     .from('sessions')
-                    .select('*, session_users(username)')
+                    .select('*')
                     .eq('sessionCode', params.slug)
                     .single();
 
@@ -89,19 +112,25 @@ export default function Board({ params, searchParams }: { params: { slug: string
                 setIsVotingPhase(sessionData.isVotingPhase);
                 setIsUploadPhase(sessionData.isUploadPhase);
 
+                if (sessionData.createdBy === user?.id) {
+                    setIsOwner(true);
+                } else {
+                    setIsOwner(false);
+                }
+
                 const sessionImages = await supabase
                     .from('session_images')
                     .select('*')
                     .eq('sessionId', sessionData.id)
                     .order('created_at', { ascending: false })
 
-                setImages(sessionImages.data as Image[]);
+                setImages(sessionImages.data as SessionImage[]);
 
                 const sessionVotes = await supabase
                     .from('votes')
                     .select('*')
                     .eq('sessionId', sessionData.id)
-                    .eq('userId', userData.data?.id)
+                    .eq('userId', user?.id)
 
                 if (sessionVotes.error || !sessionVotes.data) {
                     toast.error('Error fetching session votes. Please try again');
@@ -109,7 +138,6 @@ export default function Board({ params, searchParams }: { params: { slug: string
                 }
 
                 setUserVoted(sessionVotes.data as Vote[]);
-                console.log("User Voted", userVoted);   
 
                 const imageChannel = supabase
                     .channel('session_images')
@@ -118,11 +146,11 @@ export default function Board({ params, searchParams }: { params: { slug: string
 
                 const votesChannel = supabase
                     .channel('votes')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `(sessionId=eq.${sessionData?.id} and userId=eq.${userData.data?.id})` }, handleVoteInsert)
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `(sessionId=eq.${sessionData?.id} and userId=eq.${currentUserId})` }, handleVoteInsert)
 
                 const votesDeleteChannel = supabase
                     .channel('votes')
-                    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'votes', filter: `(sessionId=eq.${sessionData?.id} and userId=eq.${userData.data?.id})` }, handleVoteDelete)
+                    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'votes', filter: `(sessionId=eq.${sessionData?.id} and userId=eq.${currentUserId})` }, handleVoteDelete)
 
                 const sessionChannel = supabase
                     .channel('sessions')
@@ -134,14 +162,11 @@ export default function Board({ params, searchParams }: { params: { slug: string
         }
 
         fetchSession();
-    }, [])
+    }, [params.slug])
 
     const handleImageInsert = (payload: any) => {
-        console.log("handleImageInsert", payload);
         if (payload.new) {
-            const imagePayload = payload.new as Image;
-            toast.info(`${imagePayload.userId}, have uploaded a new image!`);
-            setImages([...images, payload.new as Image])
+            setImages([...images, payload.new as SessionImage])
         }
     }
 
@@ -150,16 +175,6 @@ export default function Board({ params, searchParams }: { params: { slug: string
             const sessionPayload = payload.new as Session;
             setIsUploadPhase(sessionPayload.isUploadPhase);
             setIsVotingPhase(sessionPayload.isVotingPhase);
-
-            // if (sessionPayload.isUploadPhase !== isUploadPhase) {
-            //     toast.warning(`Uploads are now ${sessionPayload.isUploadPhase ? 'unlocked' : 'locked'}`);
-            //     setIsUploadPhase(sessionPayload.isUploadPhase);
-            // }
-
-            // if (sessionPayload.isVotingPhase !== isVotingPhase) {
-            //     toast.warning(`Voting is now ${sessionPayload.isVotingPhase ? 'unlocked' : 'locked'}`);
-            //     setIsVotingPhase(sessionPayload.isVotingPhase);
-            // }
         }
     }
 
@@ -183,7 +198,7 @@ export default function Board({ params, searchParams }: { params: { slug: string
             .delete()
             .eq('sessionId', session?.id)
             .eq('imageId', imageId)
-            .eq('userId', user?.id)
+            .eq('userId', currentUserId)
             .select('*')
 
         if (error || !data) {
@@ -195,10 +210,10 @@ export default function Board({ params, searchParams }: { params: { slug: string
     }
 
     const handleVote = async (imageId: number) => {
-        if (isVotingPhase && session?.id && user?.id) {
+        if (isVotingPhase && session?.id && currentUserId != null) {
             const { data, error } = await supabase
                 .from('votes')
-                .insert([{ sessionId: session?.id, imageId: imageId, userId: user?.id, vote: true }])
+                .insert([{ sessionId: session?.id, imageId: imageId, userId: currentUserId, vote: true }])
                 .select('*')
                 .single()
 
@@ -207,8 +222,7 @@ export default function Board({ params, searchParams }: { params: { slug: string
                 return;
             }
 
-            console.log("User Voted", data);
-            setUserVoted([...userVoted, { sessionId: session?.id, imageId: imageId, userId: user?.id, id: data.id }])
+            setUserVoted([...userVoted, { sessionId: session?.id, imageId: imageId, userId: currentUserId, id: data.id }])
         }
     }
 
@@ -251,7 +265,7 @@ export default function Board({ params, searchParams }: { params: { slug: string
     const handleSuccessfulUpload = async (res: any) => {
         const { data, error } = await supabase
             .from('session_images')
-            .insert([{ sessionId: session?.id, userId: user?.id, url: res[0].url }])
+            .insert([{ sessionId: session?.id, userId: currentUserId, url: res[0].url }])
             .select('*')
 
         if (error || !data) {
@@ -262,105 +276,107 @@ export default function Board({ params, searchParams }: { params: { slug: string
         toast.success('Image uploaded successfully');
     }
 
-    const renderPhaseControl = () => {
-        if (user === null || !user!.isCreator) return null
-
-        return (
-            <div className="p-4 bg-gray-100 rounded-lg flex flex-col gap-4">
-                <h2 className="text-lg font-semibold mb-4">Dashboard</h2>
-                <p className='text-sm'>Total Images: { }</p>
-                <p className='text-sm'>Total Votes: {numberOfVotes}</p>
-                <div className="flex space-x-4 items-center justify-between">
-                    {isUploadPhase ? <span className='text-green-500 font-mono'>Uploads Enabled</span> : <span className='text-red-500 font-mono'>Uploads Disabled</span>}
-                    <Button onClick={toggleUploadLock}>
-                        {isUploadPhase ? <Lock className="w-4 h-4 mr-2" /> : <Unlock className="w-4 h-4 mr-2" />}
-                        {isUploadPhase ? 'Lock Uploads' : 'Unlock Uploads'}
-                    </Button>
-                </div>
-                <div className="flex space-x-4 items-center justify-between">
-                    {isVotingPhase ? <span className='text-green-500 font-mono'>Voting Enabled</span> : <span className='text-red-500 font-mono'>Voting Disabled</span>}
-                    <Button onClick={toggleVoteLock}>
-                        {isVotingPhase ? <Lock className="w-4 h-4 mr-2" /> : <Unlock className="w-4 h-4 mr-2" />}
-                        {isVotingPhase ? 'Lock Voting' : 'Unlock Voting'}
-                    </Button>
-                </div>
-            </div>
-        )
+    const downloadQRCode = () => {
+        // if (qrCode) {
+        //     qrCode.download({ name: `qr-code-${params.slug}.png` });
+        // }
     }
 
     return (
         <div>
             <header className='sticky top-0 flex h-12 items-center gap-4 border-b bg-background px-4 md:px-6 justify-between'>
-                <div>
+                <div className='flex items-center space-x-2 gap-2'>
+                    <Image src='/icon.png' alt="DouDou" width={32} height={32} />
                     <span className='text-md font-bold flex items-center space-x-2 gap-2'>
-                        <TokensIcon className='w-5 h-5' />
-                        Session: {params.slug}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <QrCodeIcon className='w-5 h-5' />
+                            </PopoverTrigger>
+                            <PopoverContent>
+                                <Button onClick={downloadQRCode}>Download QR Code</Button>
+                            </PopoverContent>
+                        </Popover>
+                        {params.slug}
                     </span>
-                    <p className='text-xs'>doudou.muniee.com/sessions/{params.slug}</p>
                 </div>
                 <span className='text-md font-bold flex items-center space-x-2 gap-2'>
-                    <PersonIcon className='w-5 h-5' />
-                    User: {searchParams.username}
+                    <Profile />
                 </span>
             </header>
-            <div className="container mx-auto px-4 py-2">
-                {renderPhaseControl()}
-                {isUploadPhase && images.filter(image => image.userId === user?.id).length < (session?.maxUpload ?? 1) && (
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-semibold mb-4">Upload a Photo</h2>
-                        <div className="flex items-center space-x-4">
-                            <UploadButton
-                                /**
-                                 * @see https://docs.uploadthing.com/api-reference/react#uploadbutton
-                                 */
-                                endpoint="imageUploader"
-                                onClientUploadComplete={(res) => {
-                                    console.log("Upload Completed.", res);
-                                    handleSuccessfulUpload(res);
-                                }}
-                                onUploadBegin={() => {
-                                    console.log("upload begin");
-                                }}
-                                config={{ appendOnPaste: true, mode: "manual" }}
-                            />
-                        </div>
+            {!isVotingPhase && (
+                <div className="bg-yellow-100 border-b border-yellow-200 p-1">
+                    <div className="container mx-auto flex items-center justify-center">
+                        <p className="text-yellow-800 font-bold text-xs flex items-center gap-2">
+                            <TrophyIcon className="w-4 h-4" />
+                            Voting Disabled
+                        </p>
                     </div>
+                </div>
+            )}
+            <div className="container mx-auto px-4 py-2">
+                {currentUserId === null || isOwner ? null : (
+                    <>
+                        <div className="p-4 bg-gray-100 rounded-lg flex flex-col gap-2 text-black">
+                            <h2 className="text-lg font-semibold">Dashboard</h2>
+                            <div className="grid grid-cols-2 gap-2 items-center">
+                                <p className='text-sm'>Total Images:</p>
+                                <p className='text-sm justify-self-end'>{images.length}</p>
+                                <p className='text-sm'>Total Votes:</p>
+                                <p className='text-sm justify-self-end'>{numberOfVotes}</p>
+                                {isUploadPhase ? <span className='text-green-500 text-sm'>Uploads Enabled</span> : <span className='text-red-500 text-sm'>Uploads Disabled</span>}
+                                <Button onClick={toggleUploadLock} size="icon" className='justify-self-end'>
+                                    {isUploadPhase ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                </Button>
+                                {isVotingPhase ? <span className='text-green-500 text-sm'>Voting Enabled</span> : <span className='text-red-500 text-sm'>Voting Disabled</span>}
+                                <Button onClick={toggleVoteLock} size="icon" className='justify-self-end'>
+                                    {isVotingPhase ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                </Button>
+                            </div>
+                        </div>
+                        <div className='my-2'>
+                            <Uploader sessionId={session?.id} />
+                        </div>
+                    </>
                 )}
                 <h2 className="text-2xl font-semibold mt-4">Gallery</h2>
                 <p className='text-sm text-gray-400 mb-2'>Max Votes: {session?.maxVoteAmount}</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 justify-items-center">
-                    {images !== null && images.map(image => (
-                        <div key={image.id} className="border rounded-lg p-4 w-min flex flex-col justify-between">
-                            <Image
-                                src={image.url}
-                                alt="Uploaded photo"
-                                width={256}
-                                height={256}
-                                className="mb-4 cursor-pointer min-w-64"
-                                onClick={() => setSelectedImage(image)}
-                            />
-                            {isVotingPhase && image.userId !== user?.id && userVoted.filter(vote => vote.imageId === image.id).length === 0 && userVoted.length < (session?.maxVoteAmount ?? 3) && (
-                                <Button className='w-full self-end' onClick={() => handleVote(image.id)}>
-                                    Vote
-                                </Button>
-                            )}
-                            {isVotingPhase && userVoted.filter(vote => vote.imageId === image.id).length >= 1 && (
-                                <Button className='w-full self-end' onClick={() => handleDeleteVote(image.id)}>
-                                    Remove Vote
-                                </Button>
-                            )}
+                <div className="mx-auto grid grid-cols-4 gap-2 items-center">
+                    {images !== null && images.filter(image => image.url !== null).map(image => (
+                        <div key={image.id} className='relative rounded-md group'>
+                            <div className={`
+                                relative 
+                                ${userVoted.some(vote => vote.imageId === image.id) ? 'after:absolute after:inset-0 after:bg-yellow-500/20 after:rounded-md' : ''}
+                            `} onClick={() => setSelectedImage(image)}>
+                                <Image
+                                    src={image?.url!}
+                                    alt="Uploaded photo"
+                                    width={128}
+                                    height={128}
+                                    className="rounded-md"
+                                />
+                                {userVoted.some(vote => vote.imageId === image.id) && (
+                                    <div className="absolute top-1 right-1">
+                                        <Trophy className="w-4 h-4 text-yellow-500 drop-shadow-md" />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>
                 {selectedImage && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
                         <div className="bg-white rounded-lg p-4 max-w-2xl w-full">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-xl font-semibold">Photo Details</h3>
-                                <Button variant="ghost" onClick={() => setSelectedImage(null)}>
+                            <div className="flex justify-end mb-4">
+                                <Button variant="ghost" onClick={() => setSelectedImage(null)} className="text-black">
                                     <X className="w-4 h-4" />
                                 </Button>
                             </div>
+                            {userVoted.some(vote => vote.imageId === selectedImage.id) && (
+                                <div className='flex justify-center items-center gap-2 mb-4'>
+                                    <span className='text-sm text-black'>Voted</span>
+                                    <Trophy className="w-4 h-4 text-yellow-500 drop-shadow-md" />
+                                </div>
+                            )}
                             <Image
                                 src={selectedImage.url}
                                 alt="Selected photo"
@@ -368,6 +384,16 @@ export default function Board({ params, searchParams }: { params: { slug: string
                                 height={600}
                                 className="mb-4"
                             />
+                            {isVotingPhase && userVoted.filter(vote => vote.imageId === selectedImage.id).length === 0 && userVoted.length < (session?.maxVoteAmount ?? 3) && (
+                                <Button className='w-full self-end bg-green-400' onClick={() => handleVote(selectedImage.id)}>
+                                    Vote
+                                </Button>
+                            )}
+                            {isVotingPhase && userVoted.filter(vote => vote.imageId === selectedImage.id).length >= 1 && (
+                                <Button className='w-full self-end bg-red-400' onClick={() => handleDeleteVote(selectedImage.id)}>
+                                    Remove Vote
+                                </Button>
+                            )}
                         </div>
                     </div>
                 )}
