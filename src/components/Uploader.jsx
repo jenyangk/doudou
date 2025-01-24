@@ -105,7 +105,6 @@ export default function Uploader({ sessionId }) {
     });
 
     uppy.off('complete', null).on('complete', async (result) => {
-        console.log('Upload Complete', result);
         try {
             const promises = result.successful.map(async (file) => {
                 const imageUrl = `https://${NEXT_PUBLIC_SUPABASE_PROJECT_ID}.supabase.co/storage/v1/object/public/${NEXT_PUBLIC_STORAGE_BUCKET}/${file.meta.objectName}`;
