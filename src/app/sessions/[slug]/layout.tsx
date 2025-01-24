@@ -3,12 +3,13 @@
 import { use, useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { QrCodeIcon } from 'lucide-react';
+import { QrCodeIcon, Copy, Check } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import QRCodeStyling from "qr-code-styling";
 import Profile from '@/components/Profile';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 export default function SessionLayout({
     children,
@@ -20,12 +21,15 @@ export default function SessionLayout({
     const resolvedParams = use(params);
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
     const qrCodeRef = useRef<HTMLDivElement>(null);
 
+    const sessionUrl = `https://doudou.muniee.com/sessions/${resolvedParams.slug}`;
+
     const [qrCode] = useState<QRCodeStyling>(() => new QRCodeStyling({
-        width: 256,
-        height: 256,
-        data: `https://doudou.muniee.com/sessions/${resolvedParams.slug}`,
+        width: 200,
+        height: 200,
+        data: sessionUrl,
         image: '/icon-large.png',
         dotsOptions: {
             color: "#000000",
@@ -36,6 +40,17 @@ export default function SessionLayout({
             margin: 10
         }
     }));
+
+    const copyToClipboard = async () => {
+        try {
+            await navigator.clipboard.writeText(sessionUrl);
+            setIsCopied(true);
+            toast.success('Link copied to clipboard');
+            setTimeout(() => setIsCopied(false), 2000);
+        } catch (err) {
+            toast.error('Failed to copy link');
+        }
+    };
 
     useEffect(() => {
         const signInAnonymously = async () => {
@@ -100,16 +115,36 @@ export default function SessionLayout({
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-4" side="bottom" align="start">
-                                <div className="flex flex-col items-center gap-4">
+                                <div className="flex flex-col items-center gap-2">
                                     <div ref={qrCodeRef}></div>
                                     <Button
-                                        onClick={() => qrCode?.download({
-                                            name: `qr-code-${resolvedParams.slug}.png`
-                                        })}
-                                        className="w-full"
-                                    >
-                                        Download QR Code
-                                    </Button>
+                                            onClick={copyToClipboard}
+                                            variant="outline"
+                                            className="flex-1"
+                                        >
+                                            {isCopied ? (
+                                                <>
+                                                    <Check className="w-4 h-4 mr-2" />
+                                                    Copied
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Copy className="w-4 h-4 mr-2" />
+                                                    Copy Link
+                                                </>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            onClick={() => qrCode?.download({
+                                                name: `qr-code-${resolvedParams.slug}.png`
+                                            })}
+                                            className="flex-1"
+                                        >
+                                            Download QR
+                                        </Button>
+                                    <div className="flex w-full gap-2">
+
+                                    </div>
                                 </div>
                             </PopoverContent>
                         </Popover>
