@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Camera, X, Lock, Unlock, QrCodeIcon, Trophy, TrophyIcon, ArrowRight } from 'lucide-react'
+import { Camera, X, Lock, Unlock, QrCodeIcon, Trophy, TrophyIcon, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { PersonIcon, TokensIcon } from '@radix-ui/react-icons'
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -63,6 +63,9 @@ export default function Board(
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [userVoted, setUserVoted] = useState<Vote[]>([]);
     const [isOwner, setIsOwner] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [maxVotes, setMaxVotes] = useState(0);
+    const [remainingVotes, setRemainingVotes] = useState(0);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -97,26 +100,14 @@ export default function Board(
     useEffect(() => {
         const fetchSession = async () => {
             if (params.slug !== '') {
-                let user = (await supabase.auth.getUser()).data.user;
+                const { data: { user } } = await supabase.auth.getUser();
                 
-                // if (user == null) {
-                //     await supabase.auth.signInAnonymously({
-                //         options: {
-                //             data: {
-                //                 session_id: params.slug,
-                //             },
-                //         },
-                //     });
-                // }
-
-                setCurrentUserId(user?.id ?? null);
-
-                if (user?.id === null) {
-                    setIsLoggedIn(false);
-                    toast.error('Error fetching user session. Please try again');
-                } else {
-                    setIsLoggedIn(true);
+                if (!user) {
+                    return; // Exit if no user - layout will handle auth
                 }
+
+                setCurrentUserId(user.id);
+                setIsLoggedIn(true);
 
                 const { data, error } = await supabase
                     .from('sessions')
@@ -133,8 +124,9 @@ export default function Board(
                 setSession(sessionData);
                 setIsVotingPhase(sessionData.isVotingPhase);
                 setIsUploadPhase(sessionData.isUploadPhase);
+                setMaxVotes(sessionData.maxVoteAmount);
 
-                if (sessionData.createdBy === user?.id) {
+                if (sessionData.createdBy === user.id) {
                     setIsOwner(true);
                 } else {
                     setIsOwner(false);
@@ -161,7 +153,7 @@ export default function Board(
                         .from('votes')
                         .select('*')
                         .eq('sessionId', sessionData.id)
-                        .eq('userId', user?.id)
+                        .eq('userId', user.id)
 
                     if (sessionVotes.error || !sessionVotes.data) {
                         toast.error('Error fetching session votes. Please try again');
@@ -188,12 +180,35 @@ export default function Board(
                     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `sessionCode=eq.${params.slug}` }, handleSessionUpdate)
                     .subscribe()
 
-                // return (imageChannel, sessionChannel,votesChannel);
+                setIsLoading(false);
+
+                if (sessionData) {
+                    setSession(sessionData);
+                    setIsVotingPhase(sessionData.isVotingPhase);
+                    setIsUploadPhase(sessionData.isUploadPhase);
+                    setMaxVotes(sessionData.maxVoteAmount);
+
+                    // Get current user's votes
+                    const { data: votes } = await supabase
+                        .from('votes')
+                        .select('*')
+                        .eq('sessionId', sessionData.id)
+                        .eq('userId', user.id);
+
+                    setUserVoted(votes || []);
+                    setRemainingVotes(sessionData.maxVoteAmount - (votes?.length || 0));
+                }
             }
         }
 
         fetchSession();
     }, [params.slug])
+
+    useEffect(() => {
+        if (session) {
+            setRemainingVotes(session.maxVoteAmount - userVoted.length);
+        }
+    }, [userVoted, session]);
 
     const handleImageInsert = (payload: any) => {
         if (payload.new) {
@@ -313,10 +328,18 @@ export default function Board(
         // }
     }
 
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-pulse text-gray-500">Loading session...</div>
+            </div>
+        );
+    }
+
     return (
         <div>
-            {!isVotingPhase && (
-                <div className="bg-yellow-100 border-b border-yellow-200 p-1">
+            {!isVotingPhase ? (
+                <div className="bg-yellow-100 border-b border-yellow-200">
                     <div className="container mx-auto flex items-center justify-center gap-4">
                         <p className="text-yellow-800 font-bold text-xs flex items-center gap-2">
                             <Trophy className="w-4 h-4" />
@@ -328,6 +351,19 @@ export default function Board(
                                 <ArrowRight className="w-4 h-4" />
                             </Button>
                         </Link>
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-green-100 border-b border-green-200 p-2">
+                    <div className="container mx-auto flex items-center justify-between">
+                        <p className="text-green-800 font-bold text-xs flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4" />
+                            Voting Open
+                        </p>
+                        <p className="text-green-800 font-bold text-xs flex items-center gap-2">
+                            <span>{remainingVotes}</span>
+                            <span>votes remaining</span>
+                        </p>
                     </div>
                 </div>
             )}

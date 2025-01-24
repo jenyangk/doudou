@@ -1,13 +1,12 @@
 'use client'
 
-import { use, useEffect } from 'react';
+import { use, useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { QrCodeIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import QRCodeStyling from "qr-code-styling";
-import { useState, useRef } from 'react';
 import Profile from '@/components/Profile';
 import { supabase } from '@/lib/supabase';
 
@@ -19,27 +18,9 @@ export default function SessionLayout({
     params: Promise<{ slug: string }>;
 }) {
     const resolvedParams = use(params);
+    const [isAuthReady, setIsAuthReady] = useState(false);
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const qrCodeRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const signInAnonymously = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            
-            // Only sign in anonymously if there's no existing session
-            if (!session) {
-                await supabase.auth.signInAnonymously({
-                    options: {
-                        data: {
-                            session_id: resolvedParams.slug,
-                        },
-                    },
-                });
-            }
-        };
-
-        signInAnonymously();
-    }, [resolvedParams.slug]);
 
     const [qrCode] = useState<QRCodeStyling>(() => new QRCodeStyling({
         width: 256,
@@ -57,6 +38,30 @@ export default function SessionLayout({
     }));
 
     useEffect(() => {
+        const signInAnonymously = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (!session) {
+                await supabase.auth.signInAnonymously({
+                    options: {
+                        data: {
+                            session_id: resolvedParams.slug,
+                        },
+                    },
+                });
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+                return;
+            }
+            setIsAuthReady(true);
+        };
+
+        signInAnonymously();
+    }, [resolvedParams.slug]);
+
+    useEffect(() => {
         if (isPopoverOpen) {
             setTimeout(() => {
                 if (qrCodeRef.current) {
@@ -65,6 +70,14 @@ export default function SessionLayout({
             }, 100);
         }
     }, [isPopoverOpen, qrCode]);
+
+    if (!isAuthReady) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-pulse text-gray-500">Loading...</div>
+            </div>
+        );
+    }
 
     return (
         <div>
@@ -104,7 +117,7 @@ export default function SessionLayout({
                     </span>
                 </div>
                 <span className='text-md font-bold flex items-center space-x-2 gap-2'>
-                    <Profile />
+                    {isAuthReady && <Profile />}
                 </span>
             </header>
             {children}

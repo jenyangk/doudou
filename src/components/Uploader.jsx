@@ -6,6 +6,7 @@ import Tus from '@uppy/tus';
 import Compressor from '@uppy/compressor';
 import Webcam from '@uppy/webcam';
 import { Dashboard } from '@uppy/react';
+import heic2any from 'heic2any';
 
 import '@uppy/core/dist/style.min.css';
 import '@uppy/dashboard/dist/style.min.css';
@@ -40,7 +41,13 @@ export default function Uploader({ sessionId }) {
                     console.error('Failed because: ' + error);
                 },
             })
-            .use(Compressor)
+            .use(Compressor, {
+                quality: 1.0,
+                limit: 10,
+                maxWidth: 4000,
+                maxHeight: 4000,
+                preserveExif: true
+            })
             .use(Webcam)
     );
 
@@ -48,7 +55,7 @@ export default function Uploader({ sessionId }) {
         const setAuthHeader = async () => {
             const session = await supabase.auth.getSession();
             const accessToken = session.data.session?.access_token;
-            
+
             if (accessToken) {
                 uppy.getPlugin('Tus').setOptions({
                     headers: {
@@ -62,7 +69,29 @@ export default function Uploader({ sessionId }) {
         setAuthHeader();
     }, [uppy]);
 
-    uppy.on('file-added', async (file) => {
+    uppy.off('file-added', null).on('file-added', async (file) => {
+        // Convert HEIC to JPEG if necessary
+        if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic')) {
+            const jpegBlob = await heic2any({
+                blob: file.data,
+                toType: 'image/jpeg',
+                quality: 1.0,
+            });
+
+            // Create a new file with converted data
+            const convertedFile = await uppy.addFile({
+                name: file.name.replace(/\.(heic|HEIC|heif|HEIF)$/, '.jpg'),
+                type: 'image/jpeg',
+                data: jpegBlob,
+                source: file.source,
+                isRemote: false,
+            });
+
+            // Remove the original HEIC file
+            uppy.removeFile(file.id);
+            file = convertedFile;
+        }
+
         const supabaseMetadata = {
             bucketName: NEXT_PUBLIC_STORAGE_BUCKET,
             objectName: `${sessionId}/${file.name}`,
@@ -75,19 +104,17 @@ export default function Uploader({ sessionId }) {
         };
     });
 
-    uppy.off("complete", null).on('complete', async (result) => {
-        console.log("Upload Complete", result);
+    uppy.off('complete', null).on('complete', async (result) => {
+        console.log('Upload Complete', result);
         try {
             const promises = result.successful.map(async (file) => {
                 const imageUrl = `https://${NEXT_PUBLIC_SUPABASE_PROJECT_ID}.supabase.co/storage/v1/object/public/${NEXT_PUBLIC_STORAGE_BUCKET}/${file.meta.objectName}`;
 
-                const { error } = await supabase
-                    .from('session_images')
-                    .insert({
-                        sessionId: sessionId,
-                        url: imageUrl,
-                        userId: (await supabase.auth.getUser()).data.user.id,
-                    });
+                const { error } = await supabase.from('session_images').insert({
+                    sessionId: sessionId,
+                    url: imageUrl,
+                    userId: (await supabase.auth.getUser()).data.user.id,
+                });
 
                 if (error) throw error;
             });

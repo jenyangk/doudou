@@ -35,9 +35,6 @@ export default function AuthCodeError() {
                     <Link href="/">
                         <Button variant="outline">Go Home</Button>
                     </Link>
-                    <Link href="/">
-                        <Button>Try Again</Button>
-                    </Link>
                 </CardFooter>
             </Card>
         </div>
