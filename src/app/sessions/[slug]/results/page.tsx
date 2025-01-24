@@ -19,107 +19,96 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
   const [results, setResults] = useState<ImageResult[]>([]);
   const [sessionId, setSessionId] = useState<number | null>(null);
 
-  const fetchResults = async () => {
-    // First get the session ID from the slug
-    const { data: sessionData } = await supabase
-      .from('sessions')
-      .select('id')
-      .eq('sessionCode', params.slug)
-      .single();
-
-    if (!sessionData) return;
-    setSessionId(sessionData.id);
-
-    // Get all images and their vote counts
-    const { data: images } = await supabase
-      .from('session_images')
-      .select(`
-        id,
-        url,
-        votes (
-          id
-        )
-      `)
-      .eq('sessionId', sessionData.id);
-
-    if (!images) return;
-
-    // Transform the data to include vote counts
-    const imageResults: ImageResult[] = images.map(image => ({
-      id: image.id,
-      url: image.url,
-      voteCount: (image.votes as any[])?.length || 0
-    }));
-
-    // Sort by vote count
-    const sortedResults = imageResults.sort((a, b) => b.voteCount - a.voteCount);
-    setResults(sortedResults);
+  const updateVoteCounts = (imageId: number, increment: number) => {
+    setResults(currentResults => 
+      currentResults.map(image => 
+        image.id === imageId 
+          ? { ...image, voteCount: image.voteCount + increment }
+          : image
+      ).sort((a, b) => b.voteCount - a.voteCount)
+    );
   };
 
   useEffect(() => {
-    fetchResults();
+    const fetchResults = async () => {
+      // Get the session ID from the slug
+      const { data: sessionData } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('sessionCode', params.slug)
+        .single();
 
-    // Set up real-time subscriptions
-    if (sessionId) {
-      // Listen for vote insertions
+      if (!sessionData) return;
+      setSessionId(sessionData.id);
+
+      // Get all images and their vote counts
+      const { data: imagesData } = await supabase
+        .from('session_images')
+        .select(`
+          id,
+          url,
+          votes:votes(count)
+        `)
+        .eq('sessionId', sessionData.id);
+
+      if (!imagesData) return;
+
+      const formattedResults: ImageResult[] = imagesData.map(image => ({
+        id: image.id,
+        url: image.url,
+        voteCount: image.votes[0]?.count ?? 0
+      })).sort((a, b) => b.voteCount - a.voteCount);
+
+      setResults(formattedResults);
+
+      // Subscribe to vote changes
       const voteInsertChannel = supabase
         .channel('vote-insert')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'votes',
-            filter: `sessionId=eq.${sessionId}`
-          },
-          () => {
-            fetchResults();
+        .on('postgres_changes', 
+          { event: 'INSERT', schema: 'public', table: 'votes', filter: `sessionId=eq.${sessionData.id}` },
+          (payload) => {
+            const imageId = payload.new.imageId;
+            updateVoteCounts(imageId, 1);
           }
         )
         .subscribe();
 
-      // Listen for vote deletions
       const voteDeleteChannel = supabase
         .channel('vote-delete')
-        .on(
-          'postgres_changes',
-          {
-            event: 'DELETE',
-            schema: 'public',
-            table: 'votes',
-            filter: `sessionId=eq.${sessionId}`
-          },
-          () => {
-            fetchResults();
+        .on('postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'votes', filter: `sessionId=eq.${sessionData.id}` },
+          (payload) => {
+            const imageId = payload.old.imageId;
+            updateVoteCounts(imageId, -1);
           }
         )
         .subscribe();
 
-      // Listen for new images
+      // Subscribe to new images
       const imageChannel = supabase
         .channel('new-images')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'session_images',
-            filter: `sessionId=eq.${sessionId}`
-          },
-          () => {
-            fetchResults();
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'session_images', filter: `sessionId=eq.${sessionData.id}` },
+          (payload) => {
+            const newImage = {
+              id: payload.new.id,
+              url: payload.new.url,
+              voteCount: 0
+            };
+            setResults(current => [...current, newImage].sort((a, b) => b.voteCount - a.voteCount));
           }
         )
         .subscribe();
 
-      // Cleanup function
       return () => {
         voteInsertChannel.unsubscribe();
         voteDeleteChannel.unsubscribe();
         imageChannel.unsubscribe();
       };
-    }
-  }, [params.slug, sessionId]);
+    };
+
+    fetchResults();
+  }, [params.slug]);
 
   return (
     <div className="p-4 sm:p-8">

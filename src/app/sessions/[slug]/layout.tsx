@@ -42,7 +42,7 @@ export default function SessionLayout({
             const { data: { session } } = await supabase.auth.getSession();
             
             if (!session) {
-                await supabase.auth.signInAnonymously({
+                const { data, error } = await supabase.auth.signInAnonymously({
                     options: {
                         data: {
                             session_id: resolvedParams.slug,
@@ -50,12 +50,12 @@ export default function SessionLayout({
                     },
                 });
                 
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-                return;
+                if (data.session) {
+                    setIsAuthReady(true);
+                }
+            } else {
+                setIsAuthReady(true);
             }
-            setIsAuthReady(true);
         };
 
         signInAnonymously();
