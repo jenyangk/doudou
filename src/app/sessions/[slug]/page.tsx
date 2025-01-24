@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Camera, X, Lock, Unlock, QrCodeIcon, Trophy, TrophyIcon } from 'lucide-react'
+import { Camera, X, Lock, Unlock, QrCodeIcon, Trophy, TrophyIcon, ArrowRight } from 'lucide-react'
 import { PersonIcon, TokensIcon } from '@radix-ui/react-icons'
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -315,52 +315,19 @@ export default function Board(
 
     return (
         <div>
-            <header className='sticky top-0 flex h-12 items-center gap-4 border-b bg-background px-4 md:px-6 justify-between'>
-                <div className='flex items-center space-x-2 gap-2'>
-                    <Link href="/" className="hover:opacity-80">
-                        <Image 
-                            src='/icon.png' 
-                            alt="DouDou" 
-                            width={32} 
-                            height={32} 
-                            className="transition-opacity" 
-                        />
-                    </Link>
-                    <span className='text-md font-bold flex items-center space-x-2 gap-2'>
-                        <Popover onOpenChange={setIsPopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                    <QrCodeIcon className='w-5 h-5' />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-4" side="bottom" align="start">
-                                <div className="flex flex-col items-center gap-4">
-                                    <div ref={qrCodeRef}></div>
-                                    <Button
-                                        onClick={() => qrCode?.download({
-                                            name: `qr-code-${params.slug}.png`
-                                        })}
-                                        className="w-full"
-                                    >
-                                        Download QR Code
-                                    </Button>
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                        {params.slug}
-                    </span>
-                </div>
-                <span className='text-md font-bold flex items-center space-x-2 gap-2'>
-                    <Profile />
-                </span>
-            </header>
             {!isVotingPhase && (
                 <div className="bg-yellow-100 border-b border-yellow-200 p-1">
-                    <div className="container mx-auto flex items-center justify-center">
+                    <div className="container mx-auto flex items-center justify-center gap-4">
                         <p className="text-yellow-800 font-bold text-xs flex items-center gap-2">
-                            <TrophyIcon className="w-4 h-4" />
+                            <Trophy className="w-4 h-4" />
                             Voting Disabled
                         </p>
+                        <Link href={`/sessions/${params.slug}/results`}>
+                            <Button variant="ghost" size="sm" className="text-yellow-800 font-bold text-xs flex items-center gap-2">
+                                View Results
+                                <ArrowRight className="w-4 h-4" />
+                            </Button>
+                        </Link>
                     </div>
                 </div>
             )}

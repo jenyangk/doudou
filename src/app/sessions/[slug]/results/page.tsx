@@ -1,80 +1,166 @@
-import React from "react"
-import { Crown } from "lucide-react"
+'use client'
 
-// Mock data for our images
-const images = [
-  { id: 1, url: "/placeholder.svg?height=100&width=100", votes: 120, title: "Cute Kitten" },
-  { id: 2, url: "/placeholder.svg?height=100&width=100", votes: 85, title: "Playful Puppy" },
-  { id: 3, url: "/placeholder.svg?height=100&width=100", votes: 72, title: "Baby Elephant" },
-  { id: 4, url: "/placeholder.svg?height=100&width=100", votes: 63, title: "Little Duckling" },
-  { id: 5, url: "/placeholder.svg?height=100&width=100", votes: 54, title: "Sleepy Sloth" },
-  { id: 6, url: "/placeholder.svg?height=100&width=100", votes: 41, title: "Curious Raccoon" },
-]
+import { useState, useEffect } from "react"
+import { Crown, ArrowLeft } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import Image from "next/image"
+import { use } from "react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
-// Sort images by votes
-const sortedImages = [...images].sort((a, b) => b.votes - a.votes)
+interface ImageResult {
+  id: number
+  url: string
+  voteCount: number
+}
 
-export default function Leaderboard() {
+export default function Leaderboard(props: { params: Promise<{ slug: string }> }) {
+  const params = use(props.params);
+  const [results, setResults] = useState<ImageResult[]>([]);
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      // First get the session ID from the slug
+      const { data: sessionData } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('sessionCode', params.slug)
+        .single();
+
+      if (!sessionData) return;
+
+      // Get all images and their vote counts
+      const { data: images } = await supabase
+        .from('session_images')
+        .select(`
+          id,
+          url,
+          votes (
+            id
+          )
+        `)
+        .eq('sessionId', sessionData.id);
+
+      if (!images) return;
+
+      // Transform the data to include vote counts
+      const imageResults: ImageResult[] = images.map(image => ({
+        id: image.id,
+        url: image.url,
+        voteCount: (image.votes as any[])?.length || 0
+      }));
+
+      // Sort by vote count
+      const sortedResults = imageResults.sort((a, b) => b.voteCount - a.voteCount);
+      setResults(sortedResults);
+    };
+
+    fetchResults();
+  }, [params.slug]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-12 text-purple-600">Cutest Image Leaderboard 🏆</h1>
+    <div className="min-h-screen p-4 sm:p-8">
+      <div className="max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <Link href={`/sessions/${params.slug}`}>
+            <Button variant="ghost" size="sm" className="flex items-center gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Session
+            </Button>
+          </Link>
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-bold text-center mb-8 sm:mb-12">Results 🏆</h1>
 
         {/* Top 3 Podium */}
-        <div className="flex justify-center items-end mb-16 space-x-4">
-          {sortedImages.slice(0, 3).map((image, index) => (
-            <div
-              key={image.id}
-              className={`flex flex-col items-center ${index === 1 ? "mb-8" : index === 2 ? "mb-16" : ""}`}
-            >
-              <Crown
-                className={`w-8 h-8 mb-2 ${
-                  index === 0
-                    ? "text-yellow-400 animate-bounce"
-                    : index === 1
-                      ? "text-gray-400 animate-pulse"
-                      : "text-yellow-600"
-                }`}
-              />
-              <div className="relative">
-                <img
-                  src={image.url || "/placeholder.svg"}
-                  alt={image.title}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
-                />
-                <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-xs font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white">
-                  {index + 1}
+        <div className="flex justify-center items-end mb-8 sm:mb-16 gap-2 sm:gap-4 h-[300px] sm:h-[400px]">
+          {results.length >= 3 && (
+            <>
+              {/* Second Place - Left */}
+              <div className="flex flex-col items-center" style={{ marginTop: '60px' }}>
+                <Crown className="w-6 h-6 sm:w-8 sm:h-8 mb-2 text-slate-400 animate-pulse" />
+                <div className="relative">
+                  <Image
+                    src={results[1].url}
+                    alt="Second Place"
+                    width={80}
+                    height={80}
+                    className="rounded-full object-cover border-4 border-slate-200 shadow-lg"
+                  />
+                  <div className="absolute -bottom-2 -right-2 bg-slate-400 text-white text-xs font-bold rounded-full w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center border-2 border-white">
+                    2
+                  </div>
                 </div>
+                <p className="mt-2 font-semibold text-xs sm:text-sm">{results[1].voteCount} votes</p>
+                <div className="w-24 sm:w-32 h-24 sm:h-32 bg-slate-200 mt-4"></div>
               </div>
-              <p className="mt-2 font-semibold text-purple-700">{image.votes} votes</p>
-              <p className="text-sm text-purple-600">{image.title}</p>
-            </div>
-          ))}
+
+              {/* First Place - Middle */}
+              <div className="flex flex-col items-center">
+                <Crown className="w-8 h-8 sm:w-10 sm:h-10 mb-2 text-yellow-500 animate-bounce" />
+                <div className="relative">
+                  <Image
+                    src={results[0].url}
+                    alt="First Place"
+                    width={100}
+                    height={100}
+                    className="rounded-full object-cover border-4 border-yellow-200 shadow-lg"
+                  />
+                  <div className="absolute -bottom-2 -right-2 bg-yellow-500 text-white text-xs font-bold rounded-full w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center border-2 border-white">
+                    1
+                  </div>
+                </div>
+                <p className="mt-2 font-semibold text-xs sm:text-sm">{results[0].voteCount} votes</p>
+                <div className="w-24 sm:w-32 h-32 sm:h-40 bg-yellow-100 mt-4"></div>
+              </div>
+
+              {/* Third Place - Right */}
+              <div className="flex flex-col items-center" style={{ marginTop: '100px' }}>
+                <Crown className="w-5 h-5 sm:w-6 sm:h-6 mb-2 text-amber-700" />
+                <div className="relative">
+                  <Image
+                    src={results[2].url}
+                    alt="Third Place"
+                    width={60}
+                    height={60}
+                    className="rounded-full object-cover border-4 border-amber-200 shadow-lg"
+                  />
+                  <div className="absolute -bottom-2 -right-2 bg-amber-700 text-white text-xs font-bold rounded-full w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center border-2 border-white">
+                    3
+                  </div>
+                </div>
+                <p className="mt-2 font-semibold text-xs sm:text-sm">{results[2].voteCount} votes</p>
+                <div className="w-24 sm:w-32 h-16 sm:h-24 bg-amber-100 mt-4"></div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Remaining Images */}
-        <div className="bg-white rounded-lg shadow-xl p-6">
-          <h2 className="text-2xl font-semibold mb-4 text-purple-600">Other Contenders</h2>
-          <ul className="space-y-4">
-            {sortedImages.slice(3).map((image, index) => (
-              <li
-                key={image.id}
-                className="flex items-center space-x-4 p-2 hover:bg-pink-50 rounded-lg transition-colors duration-200"
-              >
-                <span className="text-lg font-bold text-purple-500 w-8">{index + 4}.</span>
-                <img
-                  src={image.url || "/placeholder.svg"}
-                  alt={image.title}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-pink-200"
-                />
-                <div>
-                  <p className="font-medium text-purple-700">{image.title}</p>
-                  <p className="text-sm text-purple-500">{image.votes} votes</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {results.length > 3 && (
+          <div className="bg-gray-50 rounded-lg shadow-xl p-4 sm:p-6">
+            <h2 className="text-xl sm:text-2xl font-semibold mb-4">Other Submissions</h2>
+            <ul className="space-y-3">
+              {results.slice(3).map((image, index) => (
+                <li
+                  key={image.id}
+                  className="flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                >
+                  <span className="text-base sm:text-lg font-bold w-6 sm:w-8">{index + 4}.</span>
+                  <Image
+                    src={image.url}
+                    alt={`Rank ${index + 4}`}
+                    width={40}
+                    height={40}
+                    className="rounded-full object-cover border-2 border-gray-200"
+                  />
+                  <div>
+                    <p className="text-xs sm:text-sm">{image.voteCount} votes</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )
