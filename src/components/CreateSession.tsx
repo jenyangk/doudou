@@ -3,12 +3,21 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { QrCodeIcon } from 'lucide-react';
 
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+
+interface Session {
+    id: number;
+    sessionName: string;
+    sessionCode: string;
+    createdAt: Date;
+}
 
 export default function CreateSession() {
     const router = useRouter();
@@ -16,23 +25,36 @@ export default function CreateSession() {
     const [sessionName, setSessionName] = useState('');
     const [maxUploadsPerUser, setMaxUploadsPerUser] = useState(1);
     const [maxVotesPerUser, setMaxVotesPerUser] = useState(3);
+    const [userSessions, setUserSessions] = useState<Session[]>([]);
 
     useEffect(() => {
-        // Check if the user is signed in
         const checkAuth = async () => {
-          const { data: { session }, error } = await supabase.auth.getSession();
-    
-          if (error) {
-            setIsLoggedIn(false);
-          } else if (!session) {
-            setIsLoggedIn(false);
-          } else {
+            const { data: { session }, error } = await supabase.auth.getSession();
+
+            if (error || !session) {
+                setIsLoggedIn(false);
+                return;
+            }
+
             setIsLoggedIn(true);
-          }
+
+            // Fetch user's sessions
+            const { data: sessions, error: sessionsError } = await supabase
+                .from('sessions')
+                .select('id, sessionName, sessionCode, createdAt')
+                .eq('createdBy', session.user.id)
+                .order('createdAt', { ascending: false });
+
+            if (sessionsError) {
+                toast.error('Error fetching sessions');
+                return;
+            }
+
+            setUserSessions(sessions as Session[]);
         };
-    
+
         checkAuth();
-      }, []);
+    }, []);
 
     const createSession = async () => {
         // Generate a unique session code (e.g., 6 characters long)
@@ -83,7 +105,7 @@ export default function CreateSession() {
     }
 
     return (
-        <>
+        <div className="space-y-4">
             <Card>
                 <CardHeader>
                     <CardTitle>Create a Session</CardTitle>
@@ -91,32 +113,63 @@ export default function CreateSession() {
                         Create a new voting session
                     </CardDescription>
                 </CardHeader>
-                {
-                    isLoggedIn
-                        ? <CardContent className="space-y-2">
-                            <div className="space-y-1">
-                                <Label htmlFor="username">Session Name</Label>
-                                <Input id="sessionName" placeholder="My Session" required onChange={(e) => setSessionName(e.target.value)} />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="sessionCode">Maximum Uploads Per User</Label>
-                                <Input id="sessionCode" type="number" placeholder="1" min={1} required value={maxUploadsPerUser} onChange={(e) => setMaxUploadsPerUser(parseInt(e.target.value))} />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="sessionCode">Maximum Votes Per User</Label>
-                                <Input id="sessionCode" type="number" placeholder="3" min={1} required value={maxVotesPerUser} onChange={(e) => setMaxVotesPerUser(parseInt(e.target.value))} />
-                            </div>
-                        </CardContent>
-                        : <></>
-                }
+                {isLoggedIn ? (
+                    <CardContent className="space-y-2">
+                        <div className="space-y-1">
+                            <Label htmlFor="username">Session Name</Label>
+                            <Input id="sessionName" placeholder="My Session" required onChange={(e) => setSessionName(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="sessionCode">Maximum Uploads Per User</Label>
+                            <Input id="sessionCode" type="number" placeholder="1" min={1} required value={maxUploadsPerUser} onChange={(e) => setMaxUploadsPerUser(parseInt(e.target.value))} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="sessionCode">Maximum Votes Per User</Label>
+                            <Input id="sessionCode" type="number" placeholder="3" min={1} required value={maxVotesPerUser} onChange={(e) => setMaxVotesPerUser(parseInt(e.target.value))} />
+                        </div>
+                    </CardContent>
+                ) : null}
                 <CardFooter>
-                    {
-                        isLoggedIn
-                            ? <Button onClick={createSession} className="w-full">Create</Button>
-                            : <Button onClick={handleLogin} className="w-full">Login with Google</Button>
-                    }
+                    {isLoggedIn ? (
+                        <Button onClick={createSession} className="w-full">Create</Button>
+                    ) : (
+                        <Button onClick={handleLogin} className="w-full">Login with Google</Button>
+                    )}
                 </CardFooter>
             </Card>
-        </>
-    )
+
+            {isLoggedIn && userSessions.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Your Sessions</CardTitle>
+                        <CardDescription>
+                            Sessions you've created
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {userSessions.map((session) => (
+                                <div
+                                    key={session.id}
+                                    className="flex items-center justify-between p-2 hover:bg-gray-100 hover:opacity-50 rounded-md cursor-pointer"
+                                    onClick={() => router.push(`/sessions/${session.sessionCode}`)}
+                                >
+                                    <div>
+                                        <p className="font-medium">{session.sessionName}</p>
+                                        <p className="text-sm text-gray-500">
+                                            {new Date(session.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-gray-500">{session.sessionCode}</span>
+                                        <QrCodeIcon className="w-4 h-4 text-gray-500" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    );
 }

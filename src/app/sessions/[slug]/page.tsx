@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import QRCodeStyling, { Options } from "qr-code-styling";
+import Link from 'next/link';
 
 import Uploader from '@/components/Uploader';
 import Profile from '@/components/Profile';
@@ -65,36 +66,57 @@ export default function Board(
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [isQRVisible, setIsQRVisible] = useState<boolean>(false);
-    // const [qrCode] = useState<QRCodeStyling>(new QRCodeStyling(({
-    //     width: 512,
-    //     height: 512,
-    //     data: `https://doudou.muniee.com/sessions/${params.slug}`,
-    //     image: '/icon-large.png',
-    //     dotsOptions: {
-    //         color: "#000000",
-    //         type: "dots",
-    //     }
-    // })));
-    const qrCodeRef = useRef<HTMLDivElement>(null);
+    const [qrCode] = useState<QRCodeStyling>(() => new QRCodeStyling({
+        width: 256,
+        height: 256,
+        data: `https://doudou.muniee.com/sessions/${params.slug}`,
+        image: '/icon-large.png',
+        dotsOptions: {
+            color: "#000000",
+            type: "dots",
+        },
+        imageOptions: {
+            crossOrigin: "anonymous",
+            margin: 10
+        }
+    }));
 
-    // useEffect(() => {
-    //     if (qrCodeRef.current) {
-    //         qrCode?.append(qrCodeRef.current);
-    //     }
-    // }, [isQRVisible, qrCodeRef]);
+    const qrCodeRef = useRef<HTMLDivElement>(null);
+    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+    useEffect(() => {
+        if (isPopoverOpen) {
+            setTimeout(() => {
+                if (qrCodeRef.current) {
+                    qrCode?.append(qrCodeRef.current);
+                }
+            }, 100);
+        }
+    }, [isPopoverOpen, qrCodeRef]);
 
     useEffect(() => {
         const fetchSession = async () => {
             if (params.slug !== '') {
                 let user = (await supabase.auth.getUser()).data.user;
+                
+                if (user == null) {
+                    await supabase.auth.signInAnonymously({
+                        options: {
+                            data: {
+                                session_id: params.slug,
+                            },
+                        },
+                    });
+                }
+
                 setCurrentUserId(user?.id ?? null);
 
                 if (user?.id === null) {
+                    setIsLoggedIn(false);
                     toast.error('Error fetching user session. Please try again');
-                    return;
+                } else {
+                    setIsLoggedIn(true);
                 }
-                setIsLoggedIn(true);
 
                 const { data, error } = await supabase
                     .from('sessions')
@@ -118,26 +140,35 @@ export default function Board(
                     setIsOwner(false);
                 }
 
-                const sessionImages = await supabase
-                    .from('session_images')
-                    .select('*')
-                    .eq('sessionId', sessionData.id)
-                    .order('created_at', { ascending: false })
+                try {
+                    const sessionImages = await supabase
+                        .from('session_images')
+                        .select('*')
+                        .eq('sessionId', sessionData.id)
+                        .order('created_at', { ascending: false })
 
-                setImages(sessionImages.data as SessionImage[]);
-
-                const sessionVotes = await supabase
-                    .from('votes')
-                    .select('*')
-                    .eq('sessionId', sessionData.id)
-                    .eq('userId', user?.id)
-
-                if (sessionVotes.error || !sessionVotes.data) {
-                    toast.error('Error fetching session votes. Please try again');
-                    return;
+                    if (sessionImages.error || !sessionImages.data) {
+                        toast.error('Error fetching session images. Please try again');
+                    } else {
+                        setImages(sessionImages.data as SessionImage[]);
+                    }
+                } catch (error) {
+                    toast.error('Error fetching session images. Please try again');
                 }
 
-                setUserVoted(sessionVotes.data as Vote[]);
+                try {
+                    const sessionVotes = await supabase
+                        .from('votes')
+                        .select('*')
+                        .eq('sessionId', sessionData.id)
+                        .eq('userId', user?.id)
+
+                    if (sessionVotes.error || !sessionVotes.data) {
+                        toast.error('Error fetching session votes. Please try again');
+                    }
+                } catch (error) {
+                    toast.error('Error fetching session votes. Please try again');
+                }
 
                 const imageChannel = supabase
                     .channel('session_images')
@@ -286,14 +317,34 @@ export default function Board(
         <div>
             <header className='sticky top-0 flex h-12 items-center gap-4 border-b bg-background px-4 md:px-6 justify-between'>
                 <div className='flex items-center space-x-2 gap-2'>
-                    <Image src='/icon.png' alt="DouDou" width={32} height={32} />
+                    <Link href="/" className="hover:opacity-80">
+                        <Image 
+                            src='/icon.png' 
+                            alt="DouDou" 
+                            width={32} 
+                            height={32} 
+                            className="transition-opacity" 
+                        />
+                    </Link>
                     <span className='text-md font-bold flex items-center space-x-2 gap-2'>
-                        <Popover>
+                        <Popover onOpenChange={setIsPopoverOpen}>
                             <PopoverTrigger asChild>
-                                <QrCodeIcon className='w-5 h-5' />
+                                <Button variant="ghost" size="icon">
+                                    <QrCodeIcon className='w-5 h-5' />
+                                </Button>
                             </PopoverTrigger>
-                            <PopoverContent>
-                                <Button onClick={downloadQRCode}>Download QR Code</Button>
+                            <PopoverContent className="w-auto p-4" side="bottom" align="start">
+                                <div className="flex flex-col items-center gap-4">
+                                    <div ref={qrCodeRef}></div>
+                                    <Button
+                                        onClick={() => qrCode?.download({
+                                            name: `qr-code-${params.slug}.png`
+                                        })}
+                                        className="w-full"
+                                    >
+                                        Download QR Code
+                                    </Button>
+                                </div>
                             </PopoverContent>
                         </Popover>
                         {params.slug}
@@ -314,7 +365,7 @@ export default function Board(
                 </div>
             )}
             <div className="container mx-auto px-4 py-2">
-                {currentUserId === null || isOwner ? null : (
+                {isOwner ? (
                     <>
                         <div className="p-4 bg-gray-100 rounded-lg flex flex-col gap-2 text-black">
                             <h2 className="text-lg font-semibold">Dashboard</h2>
@@ -337,7 +388,7 @@ export default function Board(
                             <Uploader sessionId={session?.id} />
                         </div>
                     </>
-                )}
+                ) : null}
                 <h2 className="text-2xl font-semibold mt-4">Gallery</h2>
                 <p className='text-sm text-gray-400 mb-2'>Max Votes: {session?.maxVoteAmount}</p>
                 <div className="mx-auto grid grid-cols-4 gap-2 items-center">

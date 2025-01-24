@@ -11,7 +11,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import OneTapComponent from "@/components/OneTap";
 import CreateSession from "@/components/CreateSession";
 
 export default function Sessions(props: { searchParams: Promise<{ sessionCode: string }> }) {
@@ -127,7 +126,6 @@ export default function Sessions(props: { searchParams: Promise<{ sessionCode: s
             <header className="sticky top-0 flex h-16 items-center gap-4 px-4 md:px-6">
                 <Image src='/icon.png' alt="DouDou" width={32} height={32} />
             </header>
-            <OneTapComponent />
             <Tabs defaultValue="join_session" className="max-w-sm flex-auto px-4 sm:mx-auto">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="create_session">Create Session</TabsTrigger>
