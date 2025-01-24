@@ -41,13 +41,7 @@ export default function Uploader({ sessionId }) {
                     console.error('Failed because: ' + error);
                 },
             })
-            .use(Compressor, {
-                quality: 1.0,
-                limit: 10,
-                maxWidth: 4000,
-                maxHeight: 4000,
-                preserveExif: true
-            })
+            .use(Compressor, { quality: 0.9 })
             .use(Webcam)
     );
 

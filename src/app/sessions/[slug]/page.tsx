@@ -5,13 +5,14 @@ import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Camera, X, Lock, Unlock, QrCodeIcon, Trophy, TrophyIcon, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Camera, X, Lock, Unlock, QrCodeIcon, Trophy, TrophyIcon, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react'
 import { PersonIcon, TokensIcon } from '@radix-ui/react-icons'
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import QRCodeStyling, { Options } from "qr-code-styling";
 import Link from 'next/link';
+import { motion, AnimatePresence } from "framer-motion";
 
 import Uploader from '@/components/Uploader';
 import Profile from '@/components/Profile';
@@ -59,7 +60,6 @@ export default function Board(
     const [isUploadPhase, setIsUploadPhase] = useState(false);
     const [isVotingPhase, setIsVotingPhase] = useState(true);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [numberOfVotes, setNumberOfVotes] = useState(0);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [userVoted, setUserVoted] = useState<Vote[]>([]);
     const [isOwner, setIsOwner] = useState<boolean>(false);
@@ -212,7 +212,15 @@ export default function Board(
 
     const handleImageInsert = (payload: any) => {
         if (payload.new) {
-            setImages([...images, payload.new as SessionImage])
+            setImages(currentImages => {
+                // Check if image already exists to avoid duplicates
+                const exists = currentImages.some(img => img.id === payload.new.id);
+                if (exists) {
+                    return currentImages;
+                }
+                // Add new image to the beginning of the array
+                return [payload.new as SessionImage, ...currentImages];
+            });
         }
     }
 
@@ -375,8 +383,6 @@ export default function Board(
                             <div className="grid grid-cols-2 gap-2 items-center">
                                 <p className='text-sm'>Total Images:</p>
                                 <p className='text-sm justify-self-end'>{images.length}</p>
-                                <p className='text-sm'>Total Votes:</p>
-                                <p className='text-sm justify-self-end'>{numberOfVotes}</p>
                                 {isUploadPhase ? <span className='text-green-500 text-sm'>Uploads Enabled</span> : <span className='text-red-500 text-sm'>Uploads Disabled</span>}
                                 <Button onClick={toggleUploadLock} size="icon" className='justify-self-end'>
                                     {isUploadPhase ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
@@ -417,40 +423,95 @@ export default function Board(
                         </div>
                     ))}
                 </div>
-                {selectedImage && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg p-4 max-w-2xl w-full">
-                            <div className="flex justify-end mb-4">
-                                <Button variant="ghost" onClick={() => setSelectedImage(null)} className="text-black">
-                                    <X className="w-4 h-4" />
-                                </Button>
-                            </div>
-                            {userVoted.some(vote => vote.imageId === selectedImage.id) && (
-                                <div className='flex justify-center items-center gap-2 mb-4'>
-                                    <span className='text-sm text-black'>Voted</span>
-                                    <Trophy className="w-4 h-4 text-yellow-500 drop-shadow-md" />
+                <AnimatePresence>
+                    {selectedImage && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+                            onClick={() => setSelectedImage(null)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.95, opacity: 0 }}
+                                transition={{ type: "spring", duration: 0.3 }}
+                                className="relative max-w-3xl w-full"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <div className="absolute top-2 right-2 z-10">
+                                    <Button 
+                                        variant="outline" 
+                                        size="icon"
+                                        className="rounded-full bg-black/20 border-white/20 backdrop-blur-sm hover:bg-black/40"
+                                        onClick={() => setSelectedImage(null)}
+                                    >
+                                        <X className="w-4 h-4 text-white" />
+                                    </Button>
                                 </div>
-                            )}
-                            <Image
-                                src={selectedImage.url}
-                                alt="Selected photo"
-                                width={600}
-                                height={600}
-                                className="mb-4"
-                            />
-                            {isVotingPhase && userVoted.filter(vote => vote.imageId === selectedImage.id).length === 0 && userVoted.length < (session?.maxVoteAmount ?? 3) && (
-                                <Button className='w-full self-end bg-green-400' onClick={() => handleVote(selectedImage.id)}>
-                                    Vote
-                                </Button>
-                            )}
-                            {isVotingPhase && userVoted.filter(vote => vote.imageId === selectedImage.id).length >= 1 && (
-                                <Button className='w-full self-end bg-red-400' onClick={() => handleDeleteVote(selectedImage.id)}>
-                                    Remove Vote
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                )}
+
+                                {userVoted.some(vote => vote.imageId === selectedImage.id) && (
+                                    <motion.div 
+                                        initial={{ y: -20, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/20 backdrop-blur-sm rounded-full px-3 py-1.5 border border-white/20"
+                                    >
+                                        <span className="text-sm text-white">Voted</span>
+                                        <Trophy className="w-4 h-4 text-yellow-500" />
+                                    </motion.div>
+                                )}
+
+                                <div className="rounded-lg overflow-hidden border border-white/20 backdrop-blur-sm shadow-2xl relative">
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+                                        <Loader2 className="w-8 h-8 text-white animate-spin" />
+                                    </div>
+                                    <Image
+                                        src={selectedImage.url}
+                                        alt="Selected photo"
+                                        width={1200}
+                                        height={1200}
+                                        className="w-full h-auto relative z-10 opacity-0 transition-opacity duration-300"
+                                        onLoadingComplete={(img) => {
+                                            img.classList.remove('opacity-0');
+                                            img.classList.add('opacity-100');
+                                        }}
+                                    />
+                                </div>
+
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                                    {isVotingPhase && userVoted.filter(vote => vote.imageId === selectedImage.id).length === 0 && 
+                                     userVoted.length < (session?.maxVoteAmount ?? 3) && (
+                                        <motion.div
+                                            initial={{ y: 20, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                        >
+                                            <Button 
+                                                className="bg-green-500/80 hover:bg-green-500 backdrop-blur-sm border border-white/20"
+                                                onClick={() => handleVote(selectedImage.id)}
+                                            >
+                                                Vote
+                                            </Button>
+                                        </motion.div>
+                                    )}
+                                    {isVotingPhase && userVoted.filter(vote => vote.imageId === selectedImage.id).length >= 1 && (
+                                        <motion.div
+                                            initial={{ y: 20, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                        >
+                                            <Button 
+                                                className="bg-red-500/80 hover:bg-red-500 backdrop-blur-sm border border-white/20"
+                                                onClick={() => handleDeleteVote(selectedImage.id)}
+                                            >
+                                                Remove Vote
+                                            </Button>
+                                        </motion.div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
 
