@@ -22,6 +22,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
   const [results, setResults] = useState<ImageResult[]>([]);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [fire, setFire] = useState(false);
+  const [confettiCount, setConfettiCount] = useState(0);
 
   // Fireworks configuration
   const canvasStyles = {
@@ -184,12 +185,22 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
   }, [params.slug]);
 
   useEffect(() => {
-    if (results.length > 0) {
+    if (results.length > 0 && confettiCount < 3) {
       fireConfetti();
-      const interval = setInterval(fireConfetti, 3400);
+      const interval = setInterval(() => {
+        setConfettiCount(count => {
+          if (count >= 2) {  // Stop at 3 times (0, 1, 2)
+            clearInterval(interval);
+            return count;
+          }
+          fireConfetti();
+          return count + 1;
+        });
+      }, 3400);
+
       return () => clearInterval(interval);
     }
-  }, [results, fireConfetti]);
+  }, [results, fireConfetti, confettiCount]);
 
   return (
     <div className="p-4 sm:p-8">
