@@ -17,51 +17,114 @@ interface ImageResult {
 export default function Leaderboard(props: { params: Promise<{ slug: string }> }) {
   const params = use(props.params);
   const [results, setResults] = useState<ImageResult[]>([]);
+  const [sessionId, setSessionId] = useState<number | null>(null);
+
+  const fetchResults = async () => {
+    // First get the session ID from the slug
+    const { data: sessionData } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('sessionCode', params.slug)
+      .single();
+
+    if (!sessionData) return;
+    setSessionId(sessionData.id);
+
+    // Get all images and their vote counts
+    const { data: images } = await supabase
+      .from('session_images')
+      .select(`
+        id,
+        url,
+        votes (
+          id
+        )
+      `)
+      .eq('sessionId', sessionData.id);
+
+    if (!images) return;
+
+    // Transform the data to include vote counts
+    const imageResults: ImageResult[] = images.map(image => ({
+      id: image.id,
+      url: image.url,
+      voteCount: (image.votes as any[])?.length || 0
+    }));
+
+    // Sort by vote count
+    const sortedResults = imageResults.sort((a, b) => b.voteCount - a.voteCount);
+    setResults(sortedResults);
+  };
 
   useEffect(() => {
-    const fetchResults = async () => {
-      // First get the session ID from the slug
-      const { data: sessionData } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('sessionCode', params.slug)
-        .single();
-
-      if (!sessionData) return;
-
-      // Get all images and their vote counts
-      const { data: images } = await supabase
-        .from('session_images')
-        .select(`
-          id,
-          url,
-          votes (
-            id
-          )
-        `)
-        .eq('sessionId', sessionData.id);
-
-      if (!images) return;
-
-      // Transform the data to include vote counts
-      const imageResults: ImageResult[] = images.map(image => ({
-        id: image.id,
-        url: image.url,
-        voteCount: (image.votes as any[])?.length || 0
-      }));
-
-      // Sort by vote count
-      const sortedResults = imageResults.sort((a, b) => b.voteCount - a.voteCount);
-      setResults(sortedResults);
-    };
-
     fetchResults();
-  }, [params.slug]);
+
+    // Set up real-time subscriptions
+    if (sessionId) {
+      // Listen for vote insertions
+      const voteInsertChannel = supabase
+        .channel('vote-insert')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'votes',
+            filter: `sessionId=eq.${sessionId}`
+          },
+          () => {
+            fetchResults();
+          }
+        )
+        .subscribe();
+
+      // Listen for vote deletions
+      const voteDeleteChannel = supabase
+        .channel('vote-delete')
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'votes',
+            filter: `sessionId=eq.${sessionId}`
+          },
+          () => {
+            fetchResults();
+          }
+        )
+        .subscribe();
+
+      // Listen for new images
+      const imageChannel = supabase
+        .channel('new-images')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'session_images',
+            filter: `sessionId=eq.${sessionId}`
+          },
+          () => {
+            fetchResults();
+          }
+        )
+        .subscribe();
+
+      // Cleanup function
+      return () => {
+        voteInsertChannel.unsubscribe();
+        voteDeleteChannel.unsubscribe();
+        imageChannel.unsubscribe();
+      };
+    }
+  }, [params.slug, sessionId]);
 
   return (
-    <div className="min-h-screen p-4 sm:p-8">
+    <div className="p-4 sm:p-8">
       <div className="max-w-md mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-2">
           <Link href={`/sessions/${params.slug}`}>
             <Button variant="ghost" size="sm" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />
@@ -72,7 +135,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
         <h1 className="text-3xl sm:text-4xl font-bold text-center mb-8 sm:mb-12">Results 🏆</h1>
 
         {/* Top 3 Podium */}
-        <div className="flex justify-center items-end mb-8 sm:mb-16 gap-2 sm:gap-4 h-[300px] sm:h-[400px]">
+        <div className="flex justify-center items-end mb-4 sm:mb-16 gap-2 sm:gap-4 h-[300px] sm:h-[400px]">
           {results.length >= 3 && (
             <>
               {/* Second Place - Left */}
@@ -137,10 +200,10 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
 
         {/* Remaining Images */}
         {results.length > 3 && (
-          <div className="bg-gray-50 rounded-lg shadow-xl p-4 sm:p-6">
-            <h2 className="text-xl sm:text-2xl font-semibold mb-4">Other Submissions</h2>
+          <div className="rounded-lg shadow-xl p-4 sm:p-6">
+            <h2 className="text-xl sm:text-2xl font-semibold mb-4">Runner Ups</h2>
             <ul className="space-y-3">
-              {results.slice(3).map((image, index) => (
+              {results.slice(3, 7).map((image, index) => (
                 <li
                   key={image.id}
                   className="flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"

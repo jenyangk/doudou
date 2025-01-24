@@ -21,7 +21,7 @@ interface Session {
 
 export default function CreateSession() {
     const router = useRouter();
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isGoogleUser, setIsGoogleUser] = useState(false);
     const [sessionName, setSessionName] = useState('');
     const [maxUploadsPerUser, setMaxUploadsPerUser] = useState(1);
     const [maxVotesPerUser, setMaxVotesPerUser] = useState(3);
@@ -29,34 +29,56 @@ export default function CreateSession() {
 
     useEffect(() => {
         const checkAuth = async () => {
-            const { data: { session }, error } = await supabase.auth.getSession();
+            const { data: { session } } = await supabase.auth.getSession();
 
-            if (error || !session) {
-                setIsLoggedIn(false);
+            if (!session?.user) {
+                setIsGoogleUser(false);
                 return;
             }
 
-            setIsLoggedIn(true);
+            // Check if user is authenticated with Google
+            const isGoogle = !session.user.is_anonymous;
+            setIsGoogleUser(isGoogle);
 
-            // Fetch user's sessions
-            const { data: sessions, error: sessionsError } = await supabase
-                .from('sessions')
-                .select('id, sessionName, sessionCode, createdAt')
-                .eq('createdBy', session.user.id)
-                .order('createdAt', { ascending: false });
+            if (isGoogle) {
+                // Only fetch sessions for Google users
+                const { data: sessions, error: sessionsError } = await supabase
+                    .from('sessions')
+                    .select('id, sessionName, sessionCode, createdAt')
+                    .eq('createdBy', session.user.id)
+                    .order('createdAt', { ascending: false });
 
-            if (sessionsError) {
-                toast.error('Error fetching sessions');
-                return;
+                if (sessionsError) {
+                    toast.error('Error fetching sessions');
+                    return;
+                }
+
+                setUserSessions(sessions as Session[]);
             }
-
-            setUserSessions(sessions as Session[]);
         };
 
         checkAuth();
     }, []);
 
+    const handleLogin = async () => {
+        await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                },
+                redirectTo: `${window.location.origin}/auth/callback`,
+            },
+        });
+    };
+
     const createSession = async () => {
+        if (!isGoogleUser) {
+            toast.error('Please sign in with Google to create a session');
+            return;
+        }
+
         // Generate a unique session code (e.g., 6 characters long)
         const newSessionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
@@ -77,33 +99,6 @@ export default function CreateSession() {
         }
     };
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if ((await supabase.auth.getUser()).data.user) {
-            setIsLoggedIn(true);
-            return;
-        }
-
-        try {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    queryParams: {
-                        access_type: 'offline',
-                        prompt: 'consent',
-                    },
-                },
-            });
-
-            if (error) throw error;
-        } catch (error) {
-            if (error instanceof Error) {
-                toast.error(error.message);
-            }
-        }
-    }
-
     return (
         <div className="space-y-4">
             <Card>
@@ -113,7 +108,7 @@ export default function CreateSession() {
                         Create a new voting session
                     </CardDescription>
                 </CardHeader>
-                {isLoggedIn ? (
+                {isGoogleUser ? (
                     <CardContent className="space-y-2">
                         <div className="space-y-1">
                             <Label htmlFor="username">Session Name</Label>
@@ -128,17 +123,21 @@ export default function CreateSession() {
                             <Input id="sessionCode" type="number" placeholder="3" min={1} required value={maxVotesPerUser} onChange={(e) => setMaxVotesPerUser(parseInt(e.target.value))} />
                         </div>
                     </CardContent>
-                ) : null}
+                ) : (
+                    <CardContent>
+                        <p className="text-sm text-gray-500">Sign in with Google to create and manage sessions</p>
+                    </CardContent>
+                )}
                 <CardFooter>
-                    {isLoggedIn ? (
+                    {isGoogleUser ? (
                         <Button onClick={createSession} className="w-full">Create</Button>
                     ) : (
-                        <Button onClick={handleLogin} className="w-full">Login with Google</Button>
+                        <Button onClick={handleLogin} className="w-full">Sign in with Google</Button>
                     )}
                 </CardFooter>
             </Card>
 
-            {isLoggedIn && userSessions.length > 0 && (
+            {isGoogleUser && userSessions.length > 0 && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Your Sessions</CardTitle>
@@ -151,7 +150,7 @@ export default function CreateSession() {
                             {userSessions.map((session) => (
                                 <div
                                     key={session.id}
-                                    className="flex items-center justify-between p-2 hover:bg-gray-100 hover:opacity-50 rounded-md cursor-pointer"
+                                    className="flex items-center justify-between p-2 hover:bg-gray-100 rounded-md cursor-pointer"
                                     onClick={() => router.push(`/sessions/${session.sessionCode}`)}
                                 >
                                     <div>

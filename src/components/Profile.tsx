@@ -9,22 +9,63 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabase';
 import { PersonIcon } from '@radix-ui/react-icons';
+import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 
 const Profile = () => {
     const [user, setUser] = useState<User | null>(null);
+    const [isAnonymous, setIsAnonymous] = useState(false);
+
+    // Get the current path for redirect
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+    const isSessionPage = currentPath.startsWith('/sessions/');
 
     useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+                const isAnonUser = session.user.is_anonymous ?? false;
+                setIsAnonymous(isAnonUser);
+
+                // Generate and set random name for anonymous users if they don't have one
+                if (isAnonUser && !session.user.user_metadata.full_name) {
+                    const randomName = uniqueNamesGenerator({
+                        dictionaries: [adjectives, colors, animals],
+                        style: 'capital',
+                        separator: ' '
+                    });
+
+                    await supabase.auth.updateUser({
+                        data: { full_name: randomName }
+                    });
+                }
+            }
             setUser(session?.user ?? null);
-        })
+        });
 
         // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+            if (session?.user) {
+                const isAnonUser = session.user.is_anonymous ?? false;
+                setIsAnonymous(isAnonUser);
+
+                // Generate and set random name for anonymous users if they don't have one
+                if (isAnonUser && !session.user.user_metadata.full_name) {
+                    const randomName = uniqueNamesGenerator({
+                        dictionaries: [adjectives, colors, animals],
+                        style: 'capital',
+                        separator: ' '
+                    });
+
+                    await supabase.auth.updateUser({
+                        data: { full_name: randomName }
+                    });
+                }
+            }
             setUser(session?.user ?? null);
-        })
+            console.log("User: ", session?.user);
+        });
 
         return () => subscription.unsubscribe();
-    }, [])
+    }, []);
 
     const handleSignIn = async () => {
         await supabase.auth.signInWithOAuth({
@@ -34,13 +75,15 @@ const Profile = () => {
                     access_type: 'offline',
                     prompt: 'consent',
                 },
+                redirectTo: `${window.location.origin}/auth/callback?next=${isSessionPage ? currentPath : '/'}`,
             },
         });
-    }
+    };
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
-    }
+        window.location.href = '/';
+    };
 
     const getInitials = () => {
         if (!user?.user_metadata?.full_name) return null;
@@ -49,7 +92,7 @@ const Profile = () => {
         const firstInitial = nameParts[0]?.[0] || '';
         const lastInitial = nameParts[nameParts.length - 1]?.[0] || '';
         return (firstInitial + lastInitial).toUpperCase();
-    }
+    };
 
     return (
         <Popover>
@@ -66,13 +109,35 @@ const Profile = () => {
             <PopoverContent className="w-60" align="end">
                 {user ? (
                     <div className="space-y-4">
-                        <Button
-                            className="w-full"
-                            variant="default"
-                            onClick={handleSignOut}
-                        >
-                            Sign Out
-                        </Button>
+                        {isAnonymous ? (
+                            <>
+                                <div className="px-2 py-1 text-sm text-gray-500">
+                                    Signed in anonymously as
+                                    <div className="font-medium text-gray-500">{user.user_metadata.full_name}</div>
+                                </div>
+                                <Button
+                                    className="w-full"
+                                    variant="outline"
+                                    onClick={handleSignIn}
+                                >
+                                    Sign in with Google
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <div className="px-2 py-1 text-sm text-gray-500">
+                                    Signed in as
+                                    <div className="font-medium text-black">{user.user_metadata.full_name}</div>
+                                </div>
+                                <Button
+                                    className="w-full"
+                                    variant="default"
+                                    onClick={handleSignOut}
+                                >
+                                    Sign Out
+                                </Button>
+                            </>
+                        )}
                     </div>
                 ) : (
                     <Button
@@ -85,7 +150,7 @@ const Profile = () => {
                 )}
             </PopoverContent>
         </Popover>
-    )
-}
+    );
+};
 
 export default Profile;

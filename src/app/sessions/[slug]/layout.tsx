@@ -1,14 +1,15 @@
 'use client'
 
-import { use } from 'react';
+import { use, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { QrCodeIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import QRCodeStyling from "qr-code-styling";
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import Profile from '@/components/Profile';
+import { supabase } from '@/lib/supabase';
 
 export default function SessionLayout({
     children,
@@ -20,6 +21,25 @@ export default function SessionLayout({
     const resolvedParams = use(params);
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const qrCodeRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const signInAnonymously = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            // Only sign in anonymously if there's no existing session
+            if (!session) {
+                await supabase.auth.signInAnonymously({
+                    options: {
+                        data: {
+                            session_id: resolvedParams.slug,
+                        },
+                    },
+                });
+            }
+        };
+
+        signInAnonymously();
+    }, [resolvedParams.slug]);
 
     const [qrCode] = useState<QRCodeStyling>(() => new QRCodeStyling({
         width: 256,

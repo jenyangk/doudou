@@ -99,15 +99,15 @@ export default function Board(
             if (params.slug !== '') {
                 let user = (await supabase.auth.getUser()).data.user;
                 
-                if (user == null) {
-                    await supabase.auth.signInAnonymously({
-                        options: {
-                            data: {
-                                session_id: params.slug,
-                            },
-                        },
-                    });
-                }
+                // if (user == null) {
+                //     await supabase.auth.signInAnonymously({
+                //         options: {
+                //             data: {
+                //                 session_id: params.slug,
+                //             },
+                //         },
+                //     });
+                // }
 
                 setCurrentUserId(user?.id ?? null);
 
