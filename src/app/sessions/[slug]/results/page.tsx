@@ -189,7 +189,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
       fireConfetti();
       const interval = setInterval(() => {
         setConfettiCount(count => {
-          if (count >= 2) {  // Stop at 3 times (0, 1, 2)
+          if (count >= 2) {
             clearInterval(interval);
             return count;
           }
