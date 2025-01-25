@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Crown, ArrowLeft } from "lucide-react"
+import { Crown, ArrowLeft, X, Trophy } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import Image from "next/image"
 import { use } from "react"
@@ -23,6 +23,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [fire, setFire] = useState(false);
   const [confettiCount, setConfettiCount] = useState(0);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   // Fireworks configuration
   const canvasStyles = {
@@ -38,9 +39,9 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
   const getAnimationData = (position: number) => {
     return {
       initial: { scale: 0.8, opacity: 0, y: 20 },
-      animate: { 
-        scale: 1, 
-        opacity: 1, 
+      animate: {
+        scale: 1,
+        opacity: 1,
         y: 0,
         transition: {
           type: "spring",
@@ -48,8 +49,8 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
           duration: 0.5
         }
       },
-      exit: { 
-        scale: 0.8, 
+      exit: {
+        scale: 0.8,
         opacity: 0,
         transition: { duration: 0.3 }
       }
@@ -94,9 +95,9 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
   }, [makeShot]);
 
   const updateVoteCounts = (imageId: number, increment: number) => {
-    setResults(currentResults => 
-      currentResults.map(image => 
-        image.id === imageId 
+    setResults(currentResults =>
+      currentResults.map(image =>
+        image.id === imageId
           ? { ...image, voteCount: image.voteCount + increment }
           : image
       ).sort((a, b) => b.voteCount - a.voteCount)
@@ -138,7 +139,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
       // Subscribe to vote changes
       const voteInsertChannel = supabase
         .channel('vote-insert')
-        .on('postgres_changes', 
+        .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'votes', filter: `sessionId=eq.${sessionData.id}` },
           (payload) => {
             const imageId = payload.new.imageId;
@@ -206,7 +207,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
     <div className="p-4 sm:p-8">
       <ReactCanvasConfetti style={canvasStyles as any} />
       <div className="max-w-md mx-auto">
-        <motion.div 
+        <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="flex items-center justify-between mb-2"
@@ -218,26 +219,26 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
             </Button>
           </Link>
         </motion.div>
-        <motion.h1 
+        <motion.h1
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="text-3xl sm:text-4xl font-bold text-center mb-8 sm:mb-12"
+          className="text-3xl sm:text-4xl font-bold text-center"
         >
           Results 🏆
         </motion.h1>
 
-        <div className="flex justify-center items-end mb-4 sm:mb-16 gap-2 sm:gap-4 h-[300px] sm:h-[400px]">
+        <div className="flex justify-center items-end  gap-2 sm:gap-4 h-[300px] sm:h-[400px]">
           <AnimatePresence mode="wait">
             {results.length >= 3 && (
               <>
                 {/* Second Place */}
-                <motion.div 
+                <motion.div
                   {...getAnimationData(1)}
                   className="flex flex-col items-center"
                   style={{ marginTop: '60px' }}
                 >
                   <Crown className="w-6 h-6 sm:w-8 sm:h-8 mb-2 text-slate-400 animate-pulse" />
-                  <motion.div 
+                  <motion.div
                     whileHover={{ scale: 1.05 }}
                     className="relative"
                   >
@@ -246,9 +247,10 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                       alt="Second Place"
                       width={80}
                       height={80}
-                      className="rounded-full object-cover border-4 border-slate-200 shadow-lg"
+                      className="rounded-full object-cover border-4 border-slate-200 shadow-lg cursor-pointer"
+                      onClick={() => setSelectedId(results[1].id)}
                     />
-                    <motion.div 
+                    <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: 0.5 }}
@@ -257,7 +259,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                       2
                     </motion.div>
                   </motion.div>
-                  <motion.p 
+                  <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.6 }}
@@ -265,7 +267,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                   >
                     {results[1].voteCount} votes
                   </motion.p>
-                  <motion.div 
+                  <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: "8rem" }}
                     transition={{ duration: 0.5, delay: 0.3 }}
@@ -274,12 +276,12 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                 </motion.div>
 
                 {/* First Place */}
-                <motion.div 
+                <motion.div
                   {...getAnimationData(0)}
                   className="flex flex-col items-center"
                 >
                   <Crown className="w-8 h-8 sm:w-10 sm:h-10 mb-2 text-yellow-500 animate-bounce" />
-                  <motion.div 
+                  <motion.div
                     whileHover={{ scale: 1.05 }}
                     className="relative"
                   >
@@ -288,9 +290,10 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                       alt="First Place"
                       width={100}
                       height={100}
-                      className="rounded-full object-cover border-4 border-yellow-200 shadow-lg"
+                      className="rounded-full object-cover border-4 border-yellow-200 shadow-lg cursor-pointer"
+                      onClick={() => setSelectedId(results[0].id)}
                     />
-                    <motion.div 
+                    <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: 0.5 }}
@@ -299,7 +302,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                       1
                     </motion.div>
                   </motion.div>
-                  <motion.p 
+                  <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.6 }}
@@ -307,7 +310,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                   >
                     {results[0].voteCount} votes
                   </motion.p>
-                  <motion.div 
+                  <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: "10rem" }}
                     transition={{ duration: 0.5 }}
@@ -316,7 +319,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                 </motion.div>
 
                 {/* Third Place */}
-                <motion.div 
+                <motion.div
                   {...getAnimationData(2)}
                   className="flex flex-col items-center"
                   style={{ marginTop: '100px' }}
@@ -328,7 +331,8 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                       alt="Third Place"
                       width={60}
                       height={60}
-                      className="rounded-full object-cover border-4 border-amber-200 shadow-lg"
+                      className="rounded-full object-cover border-4 border-amber-200 shadow-lg cursor-pointer"
+                      onClick={() => setSelectedId(results[2].id)}
                     />
                     <div className="absolute -bottom-2 -right-2 bg-amber-700 text-white text-xs font-bold rounded-full w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center border-2 border-white">
                       3
@@ -344,7 +348,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
 
         {/* Runner Ups with animations */}
         {results.length > 3 && (
-          <motion.div 
+          <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.8 }}
@@ -366,7 +370,8 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
                     alt={`Rank ${index + 4}`}
                     width={40}
                     height={40}
-                    className="rounded-full object-cover border-2 border-gray-200"
+                    className="rounded-full object-cover border-2 border-gray-200 cursor-pointer"
+                    onClick={() => setSelectedId(image.id)}
                   />
                   <div>
                     <p className="text-xs sm:text-sm">{image.voteCount} votes</p>
@@ -376,6 +381,61 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
             </ul>
           </motion.div>
         )}
+
+        {/* Add the image popup */}
+        <AnimatePresence>
+          {selectedId && results.find(img => img.id === selectedId) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+              onClick={() => setSelectedId(null)}
+            >
+              <motion.div
+                className="absolute inset-4 md:inset-8 flex items-center justify-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="relative w-full h-full max-w-5xl mx-auto">
+                  <div className="w-full h-full">
+                    <Image
+                      src={results.find(img => img.id === selectedId)?.url!}
+                      alt="Selected photo"
+                      fill
+                      className="rounded-lg object-contain"
+                      sizes="100vw"
+                      priority={true}
+                    />
+                  </div>
+
+                  {/* Close button */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="absolute top-2 right-2"
+                  >
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full bg-black/20 border-white/20 backdrop-blur-sm hover:bg-black/40"
+                      onClick={() => setSelectedId(null)}
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </Button>
+                  </motion.div>
+
+                  {/* Rank badge */}
+                  <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/20 backdrop-blur-sm rounded-full px-3 py-1.5 border border-white/20">
+                    <span className="text-sm text-white">
+                      Rank #{results.findIndex(img => img.id === selectedId) + 1}
+                    </span>
+                    <Trophy className="w-4 h-4 text-yellow-500" />
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
