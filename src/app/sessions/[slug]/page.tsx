@@ -403,38 +403,52 @@ export default function Board(
                 <h2 className="text-2xl font-semibold mt-4">Gallery</h2>
                 <p className='text-sm text-gray-400 mb-2'>Max Votes: {session?.maxVoteAmount}</p>
                 <div className="mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-4">
-                    {images !== null && images.filter(image => image.url !== null).map(image => (
-                        <div key={image.id} className="relative aspect-square rounded-md group cursor-pointer">
-                            <motion.div 
-                                layoutId={`container-${image.id}`}
-                                className="relative w-full h-full"
-                                onClick={() => setSelectedId(image.id)}
-                            >
+                    {images !== null && images.filter(image => image.url !== null).length > 0 ? (
+                        images.filter(image => image.url !== null).map(image => (
+                            <div key={image.id} className="relative aspect-square rounded-md group cursor-pointer">
                                 <motion.div 
-                                    layoutId={`image-${image.id}`} 
-                                    className={`w-full h-full relative ${
-                                        userVoted.some(vote => vote.imageId === image.id) 
-                                            ? 'after:absolute after:inset-0 after:bg-yellow-500/20 after:rounded-md' 
-                                            : ''
-                                    }`}
+                                    layoutId={`container-${image.id}`}
+                                    className="relative w-full h-full"
+                                    onClick={() => setSelectedId(image.id)}
                                 >
-                                    <Image
-                                        src={image?.url!}
-                                        alt="Photo"
-                                        fill
-                                        className="rounded-md object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                                        priority={true}
-                                    />
-                                </motion.div>
-                                {userVoted.some(vote => vote.imageId === image.id) && (
-                                    <motion.div layoutId={`trophy-${image.id}`} className="absolute top-2 right-2">
-                                        <Trophy className="w-4 h-4 text-yellow-500 drop-shadow-md" />
+                                    <motion.div 
+                                        layoutId={`image-${image.id}`} 
+                                        className={`w-full h-full relative ${
+                                            userVoted.some(vote => vote.imageId === image.id) 
+                                                ? 'after:absolute after:inset-0 after:bg-yellow-500/20 after:rounded-md' 
+                                                : ''
+                                        }`}
+                                    >
+                                        <Image
+                                            src={image?.url!}
+                                            alt="Photo"
+                                            fill
+                                            className="rounded-md object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                                            priority={true}
+                                        />
                                     </motion.div>
-                                )}
-                            </motion.div>
+                                    {userVoted.some(vote => vote.imageId === image.id) && (
+                                        <motion.div layoutId={`trophy-${image.id}`} className="absolute top-2 right-2">
+                                            <Trophy className="w-4 h-4 text-yellow-500 drop-shadow-md" />
+                                        </motion.div>
+                                    )}
+                                </motion.div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+                            <div className="rounded-full bg-gray-100 p-8 mb-4">
+                                <Camera className="w-12 h-12 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-700 mb-2">No photos yet</h3>
+                            <p className="text-sm text-gray-500 max-w-sm">
+                                {isUploadPhase 
+                                    ? "Be the first to share a photo! Click the upload button to get started."
+                                    : "Uploads are currently disabled. Please wait for the host to enable uploads."}
+                            </p>
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
 
