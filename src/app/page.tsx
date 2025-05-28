@@ -1,192 +1,82 @@
-'use client'
+'use client'; // Required for Profile and other client components
 
-import { use, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabase";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import CreateSession from "@/components/CreateSession";
-import Profile from "@/components/Profile";
-import Link from "next/link";
+import Link from 'next/link';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import Profile from '@/components/Profile';
+// No specific icons are being imported for now to keep it simple.
 
-export default function Sessions(props: { searchParams: Promise<{ sessionCode: string }> }) {
-    const searchParams = use(props.searchParams);
-    const router = useRouter();
-    const [username, setUsername] = useState('');
-    const [sessionName, setSessionName] = useState('');
-    const [sessionCode, setSessionCode] = useState(searchParams.sessionCode);
-    const [maxUploadsPerUser, setMaxUploadsPerUser] = useState('1');
-    const [maxVotesPerUser, setMaxVotesPerUser] = useState('3');
+export default function LandingPage() {
+  return (
+    <div className="flex flex-col min-h-screen bg-retro-background text-retro-text font-sans">
+      {/* Header */}
+      <header className='sticky top-0 flex h-16 items-center gap-4 border-b border-retro-text/20 bg-retro-background/80 backdrop-blur-sm px-4 md:px-6 justify-between z-50'>
+        <Link href="/" className="flex items-center gap-2 hover:opacity-80">
+          <Image src='/icon.png' alt="DouDou Logo" width={36} height={36} />
+          <span className="font-bold text-xl text-retro-headline">DouDou</span>
+        </Link>
+        <Profile />
+      </header>
 
-    useEffect(() => {
-        if (searchParams.sessionCode !== '') {
-            setSessionCode(searchParams.sessionCode);
-        }
-    });
+      {/* Main Content */}
+      <main className="flex-1">
+        {/* Hero Section */}
+        <section className="py-20 md:py-28 lg:py-36 text-center bg-gradient-to-b from-retro-background to-orange-100"> {/* Subtle gradient */}
+          <div className="container px-4 mx-auto">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-retro-headline leading-tight">
+              DouDou: Vote for Your Favorite Images!
+            </h1>
+            <p className="text-lg md:text-xl lg:text-2xl mb-10 max-w-3xl mx-auto text-retro-subheadline">
+              Easily create image voting sessions, invite friends, and find out which images reign supreme. Perfect for fun competitions and quick decisions!
+            </p>
+            <Button asChild size="lg" className="px-8 py-3 text-lg font-semibold bg-retro-cta text-retro-cta-text hover:bg-retro-cta-hover transition-colors duration-300 rounded-md shadow-lg">
+              <Link href="/sessions">Get Started Now</Link>
+            </Button>
+          </div>
+        </section>
 
-    const createSession = async () => {
-        // Generate a unique session code (e.g., 6 characters long)
-        const newSessionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        {/* Features Section */}
+        <section className="py-16 md:py-20 lg:py-24 bg-orange-50"> {/* Slightly different background for separation */}
+          <div className="container px-4 mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-16 text-retro-headline">
+              Why You'll Love DouDou
+            </h2>
+            <div className="grid md:grid-cols-3 gap-8 lg:gap-12 text-left">
+              <div className="feature-item p-6 bg-retro-card-bg rounded-lg shadow-xl hover:shadow-2xl transition-shadow duration-300">
+                {/* Optional: Icon placeholder - could use a simple SVG or character later */}
+                {/* <div className="text-3xl mb-4 text-retro-cta">🎨</div> */}
+                <h3 className="text-2xl font-semibold mb-3 text-retro-card-title">Effortless Session Setup</h3>
+                <p className="text-retro-card-text leading-relaxed">Get your voting board running in minutes with our intuitive creation process.</p>
+              </div>
+              <div className="feature-item p-6 bg-retro-card-bg rounded-lg shadow-xl hover:shadow-2xl transition-shadow duration-300">
+                {/* <div className="text-3xl mb-4 text-retro-cta">🖼️</div> */}
+                <h3 className="text-2xl font-semibold mb-3 text-retro-card-title">Simple Image Uploads</h3>
+                <p className="text-retro-card-text leading-relaxed">Add images quickly from your device, ready for voting in seconds.</p>
+              </div>
+              <div className="feature-item p-6 bg-retro-card-bg rounded-lg shadow-xl hover:shadow-2xl transition-shadow duration-300">
+                {/* <div className="text-3xl mb-4 text-retro-cta">🗳️</div> */}
+                <h3 className="text-2xl font-semibold mb-3 text-retro-card-title">Public Voting Fun</h3>
+                <p className="text-retro-card-text leading-relaxed">Share a simple link and let anyone vote to help pick the winning image.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
 
-        if (sessionName === '' || username === '') {
-            toast.error('Please fill in all fields');
-            return;
-        }
-
-        const createdSession = await supabase
-            .from('sessions')
-            .insert([{ sessionName: sessionName, sessionCode: newSessionCode, creator: (await supabase.auth.getUser()).data.user?.id, maxUpload: parseInt(maxUploadsPerUser), maxVoteAmount: parseInt(maxVotesPerUser) }])
-            .select('id');
-
-        const createdUser = await supabase
-            .from('session_users')
-            .insert([{ username, sessionId: createdSession.data![0].id, isCreator: true }]);
-
-        if (createdUser) {
-            router.push('/sessions/' + newSessionCode + '?username=' + username);
-        } else {
-            toast.error('Error creating session. Please try again');
-        }
-    };
-
-    const joinSession = async () => {
-        const { data: session, error } = await supabase
-            .from('sessions')
-            .select('*')
-            .eq('sessionCode', sessionCode)
-            .single();
-
-        if (error || !session) {
-            toast.error('Session not found. Please try again');
-            return;
-        }
-
-        const checkUser = await supabase
-            .from('session_users')
-            .select('*')
-            .eq('sessionId', session.id)
-            .eq('username', username)
-            .maybeSingle();
-
-        if (checkUser.data) {
-            toast.success('Rejoining session');
-            router.push('/sessions/' + sessionCode + '?username=' + username);
-        } else {
-            const createdUser = await supabase
-                .from('session_users')
-                .insert([{ username, sessionId: session.id }]);
-
-            if (createdUser.error) {
-                toast.error('Error joining session. Please try again');
-            } else {
-                router.push('/sessions/' + sessionCode + '?username=' + username);
-            }
-        }
-    };
-
-    const [email, setEmail] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
-
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setLoading(true)
-        setMessage(null)
-
-        try {
-            const { error } = await supabase.auth.signInWithOtp({
-                email,
-                options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback`,
-                },
-            })
-
-            if (error) throw error
-
-            setMessage("Check your email for the login link!")
-            // Add a delay before redirecting to ensure the message is seen
-            setTimeout(() => {
-                router.push("/dashboard")
-            }, 3000)
-        } catch (error) {
-            if (error instanceof Error) {
-                setMessage(error.message)
-            }
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    return (
-        <div className="flex flex-col w-full min-h-screen">
-            <header className='sticky top-0 flex h-12 items-center gap-4 border-b bg-background px-4 md:px-6 justify-between'>
-                <div className='flex items-center space-x-2 gap-2'>
-                    <Link href="/" className="hover:opacity-80">
-                        <Image 
-                            src='/icon.png' 
-                            alt="DouDou" 
-                            width={32} 
-                            height={32} 
-                            className="transition-opacity" 
-                        />
-                    </Link>
-                </div>
-                <span className='text-md font-bold flex items-center space-x-2 gap-2'>
-                    <Profile />
-                </span>
-            </header>
-            
-            <main className="flex-1 py-8">
-                <Tabs defaultValue="join_session" className="max-w-sm mx-auto">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="create_session">Create Session</TabsTrigger>
-                        <TabsTrigger value="join_session">Join Session</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="create_session">
-                        <CreateSession />
-                    </TabsContent>
-                    <TabsContent value="join_session">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Join Session</CardTitle>
-                                <CardDescription>
-                                    Join a created session
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <div className="space-y-1">
-                                    <Label htmlFor="name">Username</Label>
-                                    <Input id="username" placeholder="@jenyangkoh" required onChange={(e) => setUsername(e.target.value)} />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor="current">Session Code</Label>
-                                    <Input id="current" type="text" placeholder="XXXXXX" required onChange={(e) => setSessionCode(e.target.value)} />
-                                </div>
-                            </CardContent>
-                            <CardFooter>
-                                <Button onClick={joinSession} className="w-full">Join</Button>
-                            </CardFooter>
-                        </Card>
-                    </TabsContent>
-                </Tabs>
-            </main>
-
-            <footer className="border-t py-4 px-4 md:px-6">
-                <div className="max-w-sm mx-auto flex justify-center gap-4 text-sm text-gray-500">
-                    <Link href="/tos" className="hover:text-gray-900 transition-colors">
-                        Terms of Service
-                    </Link>
-                    <Link href="/policy" className="hover:text-gray-900 transition-colors">
-                        Privacy Policy
-                    </Link>
-                </div>
-            </footer>
+      {/* Footer */}
+      <footer className="border-t border-retro-text/20 py-8 px-4 md:px-6 bg-retro-background/90">
+        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center text-sm text-retro-subheadline">
+          <p className="mb-4 md:mb-0">&copy; {new Date().getFullYear()} DouDou. All rights reserved.</p>
+          <div className="flex gap-6">
+            <Link href="/tos" className="hover:text-retro-headline transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/policy" className="hover:text-retro-headline transition-colors">
+              Privacy Policy
+            </Link>
+          </div>
         </div>
-    );
+      </footer>
+    </div>
+  );
 }

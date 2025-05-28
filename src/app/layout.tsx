@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { Rubik } from 'next/font/google'
+import { Rubik, Work_Sans } from 'next/font/google'
 
-const rubik = Rubik({ subsets: ['latin'], display: 'swap' })
+const rubik = Rubik({ subsets: ['latin'], display: 'swap', variable: '--font-rubik' })
+const workSans = Work_Sans({ subsets: ['latin'], display: 'swap', variable: '--font-work-sans' })
 
 export const metadata: Metadata = {
   title: "DouDou",
@@ -18,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${rubik.className} $antialiased`}
+        className={`${workSans.variable} font-sans ${rubik.variable} antialiased`}
       >
         {children}
         <Toaster richColors />
