@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useEffect, useState } from "react";
+import { User } from '@supabase/supabase-js'; // Import User type
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -14,15 +15,23 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import CreateSession from "@/components/CreateSession";
 import Profile from "@/components/Profile";
 import Link from "next/link";
+import MySessions from '@/components/MySessions'; // New import
 
 export default function Sessions(props: { searchParams: Promise<{ sessionCode: string }> }) {
     const searchParams = use(props.searchParams);
     const router = useRouter();
     const [username, setUsername] = useState('');
-    const [sessionName, setSessionName] = useState('');
+    // sessionName, maxUploadsPerUser, maxVotesPerUser are no longer needed here
+    // const [sessionName, setSessionName] = useState('');
     const [sessionCode, setSessionCode] = useState(searchParams.sessionCode);
-    const [maxUploadsPerUser, setMaxUploadsPerUser] = useState('1');
-    const [maxVotesPerUser, setMaxVotesPerUser] = useState('3');
+    // const [maxUploadsPerUser, setMaxUploadsPerUser] = useState('1');
+    // const [maxVotesPerUser, setMaxVotesPerUser] = useState('3');
+
+    // State for current user and their sessions
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [mySessions, setMySessions] = useState<any[]>([]); // Replace 'any' with a proper type later
+    const [sessionsLoading, setSessionsLoading] = useState(true);
+    const [sessionsError, setSessionsError] = useState<string | null>(null);
 
     useEffect(() => {
         if (searchParams.sessionCode !== '') {
@@ -30,30 +39,47 @@ export default function Sessions(props: { searchParams: Promise<{ sessionCode: s
         }
     });
 
-    const createSession = async () => {
-        // Generate a unique session code (e.g., 6 characters long)
-        const newSessionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Get current user
+    useEffect(() => {
+      const fetchUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUser(user);
+      };
+      fetchUser();
+    }, []);
 
-        if (sessionName === '' || username === '') {
-            toast.error('Please fill in all fields');
-            return;
-        }
+    // Fetch sessions when currentUser is available
+    useEffect(() => {
+      if (currentUser) {
+        const fetchSessions = async () => {
+          setSessionsLoading(true);
+          setSessionsError(null);
+          try {
+            const { data: userSessions, error } = await supabase
+              .from('sessions')
+              .select('sessionName, sessionCode, id, created_at') // Adjust fields as needed
+              .eq('creator', currentUser.id)
+              .order('created_at', { ascending: false });
 
-        const createdSession = await supabase
-            .from('sessions')
-            .insert([{ sessionName: sessionName, sessionCode: newSessionCode, creator: (await supabase.auth.getUser()).data.user?.id, maxUpload: parseInt(maxUploadsPerUser), maxVoteAmount: parseInt(maxVotesPerUser) }])
-            .select('id');
+            if (error) throw error;
+            setMySessions(userSessions || []);
+          } catch (err: any) {
+            setSessionsError(err.message || 'Failed to fetch sessions.');
+            toast.error(err.message || 'Failed to fetch your sessions.');
+          } finally {
+            setSessionsLoading(false);
+          }
+        };
+        fetchSessions();
+      } else {
+        // No user, so not loading sessions and clear any existing ones
+        setSessionsLoading(false);
+        setMySessions([]);
+      }
+    }, [currentUser]); // Re-run if currentUser changes
 
-        const createdUser = await supabase
-            .from('session_users')
-            .insert([{ username, sessionId: createdSession.data![0].id, isCreator: true }]);
-
-        if (createdUser) {
-            router.push('/sessions/' + newSessionCode + '?username=' + username);
-        } else {
-            toast.error('Error creating session. Please try again');
-        }
-    };
+    // createSession function is removed as CreateSession.tsx now handles this.
+    // const createSession = async () => { ... };
 
     const joinSession = async () => {
         const { data: session, error } = await supabase
@@ -134,22 +160,37 @@ export default function Sessions(props: { searchParams: Promise<{ sessionCode: s
               <Profile />
             </header>
             
-            <main className="flex-1 py-8">
-                {/* Apply retro card styling to Tabs and Cards if desired, or keep shadcn default */}
-                {/* For now, focusing on header and background consistency */}
-                <Tabs defaultValue="join_session" className="max-w-sm mx-auto">
-                    {/* Consider styling TabsList and TabsTrigger with retro colors if needed */}
-                    {/* e.g. text-retro-cta, border-retro-cta */}
+            <main className="flex-1 py-8 px-4 md:px-6"> {/* Added some horizontal padding */}
+              {/* My Sessions Section - Conditionally Rendered */}
+              {currentUser && (
+                <section className="mb-8 md:mb-12 max-w-2xl mx-auto"> {/* Centered and max-width */}
+                  <h2 className="text-2xl md:text-3xl font-bold text-retro-headline mb-4 md:mb-6 text-center">
+                    Your Sessions
+                  </h2>
+                  <MySessions 
+                    sessions={mySessions} 
+                    isLoading={sessionsLoading} 
+                    error={sessionsError} 
+                  />
+                </section>
+              )}
+
+              {/* Existing Create/Join Tabs */}
+              {/* Consider adding a title for this section too, e.g., "Manage Sessions" or "New Session" */}
+              {/* For simplicity, the prompt only adds a title to "Your Sessions". Adding another title here for "Create/Join" */}
+              <section className="max-w-sm mx-auto">
+                <h2 className="text-xl md:text-2xl font-bold text-retro-headline mb-3 md:mb-4 text-center">
+                  Manage Sessions
+                </h2>
+                <Tabs defaultValue="join_session" className="w-full"> 
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="create_session">Create Session</TabsTrigger>
                         <TabsTrigger value="join_session">Join Session</TabsTrigger>
                     </TabsList>
                     <TabsContent value="create_session">
-                        {/* Let CreateSession component manage its own internal styling for now */}
                         <CreateSession />
                     </TabsContent>
                     <TabsContent value="join_session">
-                        {/* Apply retro styling to Card components or use a wrapper with retro bg/border */}
                         <Card className="bg-retro-card-bg border-retro-text/10 shadow-lg">
                             <CardHeader>
                                 <CardTitle className="text-retro-card-title">Join Session</CardTitle>
@@ -173,6 +214,7 @@ export default function Sessions(props: { searchParams: Promise<{ sessionCode: s
                         </Card>
                     </TabsContent>
                 </Tabs>
+              </section>
             </main>
 
             {/* Consistent Footer from Landing Page */}
