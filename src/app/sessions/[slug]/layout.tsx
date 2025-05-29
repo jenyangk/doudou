@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import QRCodeStyling from "qr-code-styling";
 import Profile from '@/components/Profile';
-import { supabase } from '@/lib/supabase';
+// import { supabase } from '@/lib/supabase'; // Supabase import removed
 import { toast } from 'sonner';
 
 export default function SessionLayout({
@@ -19,7 +19,7 @@ export default function SessionLayout({
     params: Promise<{ slug: string }>;
 }) {
     const resolvedParams = use(params);
-    const [isAuthReady, setIsAuthReady] = useState(false);
+    // const [isAuthReady, setIsAuthReady] = useState(false); // isAuthReady state removed
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
     const qrCodeRef = useRef<HTMLDivElement>(null);
@@ -52,29 +52,13 @@ export default function SessionLayout({
         }
     };
 
-    useEffect(() => {
-        const signInAnonymously = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            
-            if (!session) {
-                const { data, error } = await supabase.auth.signInAnonymously({
-                    options: {
-                        data: {
-                            session_id: resolvedParams.slug,
-                        },
-                    },
-                });
-                
-                if (data.session) {
-                    setIsAuthReady(true);
-                }
-            } else {
-                setIsAuthReady(true);
-            }
-        };
-
-        signInAnonymously();
-    }, [resolvedParams.slug]);
+    // useEffect for Supabase anonymous sign-in removed
+    // useEffect(() => {
+    //     const signInAnonymously = async () => {
+    //         // ... Supabase logic
+    //     };
+    //     signInAnonymously();
+    // }, [resolvedParams.slug]);
 
     useEffect(() => {
         if (isPopoverOpen) {
@@ -86,13 +70,14 @@ export default function SessionLayout({
         }
     }, [isPopoverOpen, qrCode]);
 
-    if (!isAuthReady) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-pulse text-gray-500">Loading...</div>
-            </div>
-        );
-    }
+    // Loading state based on isAuthReady removed
+    // if (!isAuthReady) {
+    //     return (
+    //         <div className="min-h-screen flex items-center justify-center">
+    //             <div className="animate-pulse text-gray-500">Loading...</div>
+    //         </div>
+    //     );
+    // }
 
     return (
         <div>
@@ -152,7 +137,7 @@ export default function SessionLayout({
                     </span>
                 </div>
                 <span className='text-md font-bold flex items-center space-x-2 gap-2'>
-                    {isAuthReady && <Profile />}
+                    <Profile /> {/* Removed isAuthReady condition */}
                 </span>
             </header>
             {children}

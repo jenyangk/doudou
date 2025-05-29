@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Camera, X, Lock, Unlock, QrCodeIcon, Trophy, TrophyIcon, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react'
 import { PersonIcon, TokensIcon } from '@radix-ui/react-icons'
-import { supabase } from '@/lib/supabase';
+// import { supabase } from '@/lib/supabase'; // Supabase import removed
 import { toast } from 'sonner';
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import QRCodeStyling, { Options } from "qr-code-styling";
@@ -89,6 +89,7 @@ export default function Board(
 
     const [selectedId, setSelectedId] = useState<number | null>(null);
 
+    // useEffect for QR code (no Supabase)
     useEffect(() => {
         if (isPopoverOpen) {
             setTimeout(() => {
@@ -99,237 +100,114 @@ export default function Board(
         }
     }, [isPopoverOpen, qrCodeRef]);
 
+    // Main useEffect for fetching session, images, votes, and setting up subscriptions (ALL SUPERBASE RELATED - COMMENTING OUT)
     useEffect(() => {
         const fetchSession = async () => {
-            if (params.slug !== '') {
-                const { data: { user } } = await supabase.auth.getUser();
-                
-                if (!user) {
-                    return; // Exit if no user - layout will handle auth
-                }
-
-                setCurrentUserId(user.id);
-                setIsLoggedIn(true);
-
-                const { data, error } = await supabase
-                    .from('sessions')
-                    .select('*')
-                    .eq('sessionCode', params.slug)
-                    .single();
-
-                if (error || !data) {
-                    toast.error('Error fetching session. Please try again');
-                    return;
-                }
-
-                const sessionData = data as Session;
-                setSession(sessionData);
-                setIsVotingPhase(sessionData.isVotingPhase);
-                setIsUploadPhase(sessionData.isUploadPhase);
-                setMaxVotes(sessionData.maxVoteAmount);
-
-                if (sessionData.createdBy === user.id) {
-                    setIsOwner(true);
-                } else {
-                    setIsOwner(false);
-                }
-
-                try {
-                    const sessionImages = await supabase
-                        .from('session_images')
-                        .select('*')
-                        .eq('sessionId', sessionData.id)
-                        .order('created_at', { ascending: false })
-
-                    if (sessionImages.error || !sessionImages.data) {
-                        toast.error('Error fetching session images. Please try again');
-                    } else {
-                        setImages(sessionImages.data as SessionImage[]);
-                    }
-                } catch (error) {
-                    toast.error('Error fetching session images. Please try again');
-                }
-
-                try {
-                    const sessionVotes = await supabase
-                        .from('votes')
-                        .select('*')
-                        .eq('sessionId', sessionData.id)
-                        .eq('userId', user.id)
-
-                    if (sessionVotes.error || !sessionVotes.data) {
-                        toast.error('Error fetching session votes. Please try again');
-                    }
-                } catch (error) {
-                    toast.error('Error fetching session votes. Please try again');
-                }
-
-                const imageChannel = supabase
-                    .channel('session_images')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'session_images', filter: `sessionId=eq.${sessionData?.id}` }, handleImageInsert)
-                    .subscribe()
-
-                const votesChannel = supabase
-                    .channel('votes')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'votes', filter: `(sessionId=eq.${sessionData?.id} and userId=eq.${currentUserId})` }, handleVoteInsert)
-
-                const votesDeleteChannel = supabase
-                    .channel('votes')
-                    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'votes', filter: `(sessionId=eq.${sessionData?.id} and userId=eq.${currentUserId})` }, handleVoteDelete)
-
-                const sessionChannel = supabase
-                    .channel('sessions')
-                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `sessionCode=eq.${params.slug}` }, handleSessionUpdate)
-                    .subscribe()
-
-                setIsLoading(false);
-
-                if (sessionData) {
-                    setSession(sessionData);
-                    setIsVotingPhase(sessionData.isVotingPhase);
-                    setIsUploadPhase(sessionData.isUploadPhase);
-                    setMaxVotes(sessionData.maxVoteAmount);
-
-                    // Get current user's votes
-                    const { data: votes } = await supabase
-                        .from('votes')
-                        .select('*')
-                        .eq('sessionId', sessionData.id)
-                        .eq('userId', user.id);
-
-                    setUserVoted(votes || []);
-                    setRemainingVotes(sessionData.maxVoteAmount - (votes?.length || 0));
-                }
-            }
+            //     if (params.slug !== '') {
+            //         const { data: { user } } = await supabase.auth.getUser();
+            //         if (!user) {
+            //             return; 
+            //         }
+            //         setCurrentUserId(user.id);
+            //         setIsLoggedIn(true);
+            //         const { data, error } = await supabase
+            //             .from('sessions')
+            //             .select('*')
+            //             .eq('sessionCode', params.slug)
+            //             .single();
+            //         if (error || !data) {
+            //             toast.error('Error fetching session. Please try again');
+            //             return;
+            //         }
+            //         const sessionData = data as Session;
+            //         setSession(sessionData);
+            //         setIsVotingPhase(sessionData.isVotingPhase);
+            //         setIsUploadPhase(sessionData.isUploadPhase);
+            //         setMaxVotes(sessionData.maxVoteAmount);
+            //         if (sessionData.createdBy === user.id) {
+            //             setIsOwner(true);
+            //         } else {
+            //             setIsOwner(false);
+            //         }
+            //         // Fetch images, votes ...
+            //         // Setup channels ...
+            //         setIsLoading(false);
+            //         // set user votes ...
+            toast.info("Session data fetching is temporarily disabled.");
+            setIsLoading(false); // Assume loading finishes
+            // Mock some data for UI layout if needed
+            setSession({ id: 1, sessionName: "Demo Session", isVotingPhase: true, isUploadPhase: true, maxUpload: 5, maxVoteAmount: 3, createdBy: "demo_user" });
+            setImages([]);
+            setUserVoted([]);
+            setRemainingVotes(3);
+            setIsOwner(true); // To see admin controls for layout
+            //     }
         }
-
         fetchSession();
-    }, [params.slug])
+    }, [params.slug]);
 
+    // useEffect for remaining votes (no Supabase, but depends on data that was fetched by Supabase)
     useEffect(() => {
         if (session) {
             setRemainingVotes(session.maxVoteAmount - userVoted.length);
         }
     }, [userVoted, session]);
 
-    const handleImageInsert = (payload: any) => {
-        if (payload.new) {
-            setImages(currentImages => {
-                // Check if image already exists to avoid duplicates
-                const exists = currentImages.some(img => img.id === payload.new.id);
-                if (exists) {
-                    return currentImages;
-                }
-                // Add new image to the beginning of the array
-                return [payload.new as SessionImage, ...currentImages];
-            });
-        }
-    }
+    // handleImageInsert (Supabase channel callback) - COMMENTING OUT
+    // const handleImageInsert = (payload: any) => { ... }
 
-    const handleSessionUpdate = (payload: any) => {
-        if (payload.new) {
-            const sessionPayload = payload.new as Session;
-            setIsUploadPhase(sessionPayload.isUploadPhase);
-            setIsVotingPhase(sessionPayload.isVotingPhase);
-        }
-    }
+    // handleSessionUpdate (Supabase channel callback) - COMMENTING OUT
+    // const handleSessionUpdate = (payload: any) => { ... }
 
-    const handleVoteInsert = (payload: any) => {
-        if (payload.new) {
-            const votePayload = payload.new as Vote;
-            setUserVoted([...userVoted, votePayload])
-        }
-    }
+    // handleVoteInsert (Supabase channel callback) - COMMENTING OUT
+    // const handleVoteInsert = (payload: any) => { ... }
 
-    const handleVoteDelete = (payload: any) => {
-        if (payload.old) {
-            const votePayload = payload.old as Vote;
-            setUserVoted(userVoted.filter(vote => vote.id !== votePayload.id))
-        }
-    }
+    // handleVoteDelete (Supabase channel callback) - COMMENTING OUT
+    // const handleVoteDelete = (payload: any) => { ... }
 
+    // handleDeleteVote (Supabase data operation) - COMMENTING OUT
     const handleDeleteVote = async (imageId: number) => {
-        const { data, error } = await supabase
-            .from('votes')
-            .delete()
-            .eq('sessionId', session?.id)
-            .eq('imageId', imageId)
-            .eq('userId', currentUserId)
-            .select('*')
-
-        if (error || !data) {
-            toast.error('Error deleting vote. Please try again');
-            return;
-        }
-
-        setUserVoted(userVoted.filter(vote => vote.imageId !== imageId))
+        toast.info("Voting functionality is temporarily disabled.");
+        // const { data, error } = await supabase ...
+        // setUserVoted(userVoted.filter(vote => vote.imageId !== imageId))
     }
 
+    // handleVote (Supabase data operation) - COMMENTING OUT
     const handleVote = async (imageId: number) => {
-        if (isVotingPhase && session?.id && currentUserId != null) {
-            const { data, error } = await supabase
-                .from('votes')
-                .insert([{ sessionId: session?.id, imageId: imageId, userId: currentUserId, vote: true }])
-                .select('*')
-                .single()
-
-            if (error || !data) {
-                toast.error('Error inserting vote. Please try again');
-                return;
-            }
-
-            setUserVoted([...userVoted, { sessionId: session?.id, imageId: imageId, userId: currentUserId, id: data.id }])
-        }
+        toast.info("Voting functionality is temporarily disabled.");
+        // if (isVotingPhase && session?.id && currentUserId != null) {
+        //     const { data, error } = await supabase ...
+        //     setUserVoted([...userVoted, { sessionId: session?.id, imageId: imageId, userId: currentUserId, id: data.id }])
+        // }
     }
 
+    // toggleUploadLock (Supabase data operation) - COMMENTING OUT
     const toggleUploadLock = async () => {
-        const { data, error } = await supabase
-            .from('sessions')
-            .update({ isUploadPhase: !isUploadPhase })
-            .eq('id', session?.id)
-            .select('*')
-
-        if (error || !data) {
-            toast.error('Error updating session. Please try again');
-            return;
-        }
-
-        setIsUploadPhase(!isUploadPhase)
+        toast.info("Session control is temporarily disabled.");
+        // const { data, error } = await supabase ...
+        // setIsUploadPhase(!isUploadPhase)
     }
 
+    // toggleVoteLock (Supabase data operation) - COMMENTING OUT
     const toggleVoteLock = async () => {
-        const { data, error } = await supabase
-            .from('sessions')
-            .update({ isVotingPhase: !isVotingPhase })
-            .eq('id', session?.id)
-            .select('*')
-
-        if (error || !data) {
-            toast.error('Error updating session. Please try again');
-            return;
-        }
-
-        setIsVotingPhase(!isVotingPhase)
+        toast.info("Session control is temporarily disabled.");
+        // const { data, error } = await supabase ...
+        // setIsVotingPhase(!isVotingPhase)
     }
 
+    // handleFileChange (no Supabase)
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             setSelectedFile(e.target.files[0])
         }
     }
 
+    // handleSuccessfulUpload (Supabase data operation) - COMMENTING OUT
+    // This is called by Uploader.jsx, which will also need its Supabase calls removed.
     const handleSuccessfulUpload = async (res: any) => {
-        const { data, error } = await supabase
-            .from('session_images')
-            .insert([{ sessionId: session?.id, userId: currentUserId, url: res[0].url }])
-            .select('*')
-
-        if (error || !data) {
-            toast.error('Error inserting image. Please try again');
-            return;
-        }
-
-        toast.success('Image uploaded successfully');
+        toast.info("Image upload processing is temporarily disabled.");
+        // const { data, error } = await supabase ...
+        // toast.success('Image uploaded successfully');
     }
 
     const downloadQRCode = () => {

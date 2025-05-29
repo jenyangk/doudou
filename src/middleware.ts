@@ -1,22 +1,23 @@
-import { authMiddleware } from "@clerk/nextjs";
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-export default authMiddleware({
-  // An array of public routes that don't require authentication.
-  publicRoutes: [
-    "/",
-    "/sign-in",
-    "/sign-up",
-    "/policy",
-    "/tos",
-    "/icon.png",
-    "/icon-large.png",
-    "/opengraph-image.png", // Common image for social sharing
-    "/twitter-image.png", // Common image for Twitter sharing
-    "/api/health", // Example public API route for health checks
-  ],
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)", // Match /sign-in and /sign-in/...
+  "/sign-up(.*)", // Match /sign-up and /sign-up/...
+  "/policy",
+  "/tos",
+  "/icon.png",
+  "/icon-large.png",
+  "/opengraph-image.png",
+  "/twitter-image.png",
+  "/api/health",
+  // Add any other specific public files or API routes here, e.g. /api/webhooks/(.*)
+]);
 
-  // An array of routes to ignore, such as for static assets.
-  // ignoredRoutes: ["/((?!api|trpc))(_next.*|.+_static|_vercel|[\\w-]+\\.\\w+)"],
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    await auth.protect(); // Use auth directly, not auth()
+  }
 });
 
 export const config = {

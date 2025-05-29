@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Crown, ArrowLeft, X, Trophy } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+// import { supabase } from "@/lib/supabase" // Supabase import removed
 import Image from "next/image"
 import { use } from "react"
+import { toast } from "sonner"; // Import toast for user feedback
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { motion, AnimatePresence } from "framer-motion"
@@ -24,6 +25,7 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
   const [fire, setFire] = useState(false);
   const [confettiCount, setConfettiCount] = useState(0);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
 
   // Fireworks configuration
   const canvasStyles = {
@@ -106,82 +108,30 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
 
   useEffect(() => {
     const fetchResults = async () => {
-      // Get the session ID from the slug
-      const { data: sessionData } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('sessionCode', params.slug)
-        .single();
-
-      if (!sessionData) return;
-      setSessionId(sessionData.id);
-
-      // Get all images and their vote counts
-      const { data: imagesData } = await supabase
-        .from('session_images')
-        .select(`
-          id,
-          url,
-          votes:votes(count)
-        `)
-        .eq('sessionId', sessionData.id);
-
-      if (!imagesData) return;
-
-      const formattedResults: ImageResult[] = imagesData.map(image => ({
-        id: image.id,
-        url: image.url,
-        voteCount: image.votes[0]?.count ?? 0
-      })).sort((a, b) => b.voteCount - a.voteCount);
-
-      setResults(formattedResults);
-
-      // Subscribe to vote changes
-      const voteInsertChannel = supabase
-        .channel('vote-insert')
-        .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'votes', filter: `sessionId=eq.${sessionData.id}` },
-          (payload) => {
-            const imageId = payload.new.imageId;
-            updateVoteCounts(imageId, 1);
-          }
-        )
-        .subscribe();
-
-      const voteDeleteChannel = supabase
-        .channel('vote-delete')
-        .on('postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'votes', filter: `sessionId=eq.${sessionData.id}` },
-          (payload) => {
-            const imageId = payload.old.imageId;
-            updateVoteCounts(imageId, -1);
-          }
-        )
-        .subscribe();
-
-      // Subscribe to new images
-      const imageChannel = supabase
-        .channel('new-images')
-        .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'session_images', filter: `sessionId=eq.${sessionData.id}` },
-          (payload) => {
-            const newImage = {
-              id: payload.new.id,
-              url: payload.new.url,
-              voteCount: 0
-            };
-            setResults(current => [...current, newImage].sort((a, b) => b.voteCount - a.voteCount));
-          }
-        )
-        .subscribe();
-
-      return () => {
-        voteInsertChannel.unsubscribe();
-        voteDeleteChannel.unsubscribe();
-        imageChannel.unsubscribe();
-      };
+      //     // Get the session ID from the slug
+      //     const { data: sessionData } = await supabase
+      //         .from('sessions')
+      //         .select('id')
+      //         .eq('sessionCode', params.slug)
+      //         .single();
+      //     if (!sessionData) return;
+      //     setSessionId(sessionData.id);
+      //     // Get all images and their vote counts
+      //     const { data: imagesData } = await supabase ...
+      //     // ... rest of the Supabase logic for fetching and subscriptions
+      toast.info("Results data fetching is temporarily disabled.");
+      setIsLoading(false);
+      // Mock some data for UI layout if needed
+      setResults([
+          // { id: 1, url: '/placeholder-image.png', voteCount: 10 }, // Replace with actual placeholder if you have one
+          // { id: 2, url: '/placeholder-image.png', voteCount: 8 },
+          // { id: 3, url: '/placeholder-image.png', voteCount: 5 },
+          // { id: 4, url: '/placeholder-image.png', voteCount: 2 },
+      ]);
+      // return () => {
+      //     // Unsubscribe logic
+      // };
     };
-
     fetchResults();
   }, [params.slug]);
 
@@ -202,6 +152,14 @@ export default function Leaderboard(props: { params: Promise<{ slug: string }> }
       return () => clearInterval(interval);
     }
   }, [results, fireConfetti, confettiCount]);
+
+  if (isLoading) {
+    return (
+        <div className="min-h-screen flex items-center justify-center">
+            <div className="animate-pulse text-gray-500">Loading results...</div>
+        </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-8">
