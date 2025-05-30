@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 // QrCodeIcon is no longer used after removing session list
-// import { QrCodeIcon } from 'lucide-react'; 
+// import { QrCodeIcon } from 'lucide-react';
 
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -92,7 +92,7 @@ export default function CreateSession() {
     return (
         // The outer div with space-y-4 might not be needed if it's just one card now.
         // Keeping it for now as it doesn't harm.
-        <div className="space-y-4"> 
+        <div className="space-y-4">
             <Card className="bg-retro-card-bg border-retro-text/10 shadow-lg">
                 <CardHeader>
                     <CardTitle className="text-retro-card-title">Create a Session</CardTitle>

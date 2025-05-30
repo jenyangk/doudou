@@ -159,7 +159,7 @@ export default function Sessions(props: { searchParams: Promise<{ sessionCode: s
               </Link>
               <Profile />
             </header>
-            
+
             <main className="flex-1 py-8 px-4 md:px-6"> {/* Added some horizontal padding */}
               {/* My Sessions Section - Conditionally Rendered */}
               {currentUser && (
@@ -167,10 +167,10 @@ export default function Sessions(props: { searchParams: Promise<{ sessionCode: s
                   <h2 className="text-2xl md:text-3xl font-bold text-retro-headline mb-4 md:mb-6 text-center">
                     Your Sessions
                   </h2>
-                  <MySessions 
-                    sessions={mySessions} 
-                    isLoading={sessionsLoading} 
-                    error={sessionsError} 
+                  <MySessions
+                    sessions={mySessions}
+                    isLoading={sessionsLoading}
+                    error={sessionsError}
                   />
                 </section>
               )}
@@ -182,7 +182,7 @@ export default function Sessions(props: { searchParams: Promise<{ sessionCode: s
                 <h2 className="text-xl md:text-2xl font-bold text-retro-headline mb-3 md:mb-4 text-center">
                   Manage Sessions
                 </h2>
-                <Tabs defaultValue="join_session" className="w-full"> 
+                <Tabs defaultValue="join_session" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="create_session">Create Session</TabsTrigger>
                         <TabsTrigger value="join_session">Join Session</TabsTrigger>
@@ -228,7 +228,8 @@ export default function Sessions(props: { searchParams: Promise<{ sessionCode: s
                         <Link href="/policy" className="hover:text-retro-headline transition-colors">
                         Privacy Policy
                     </Link>
-                </div>
+                    </div> {/* Closes "flex gap-6" */}
+                </div> {/* Closes "container mx-auto ..." */}
             </footer>
         </div>
     );
