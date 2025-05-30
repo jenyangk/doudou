@@ -1,3 +1,5 @@
+const { fontFamily } = require('tailwindcss/defaultTheme');
+
 export default {
 	darkMode: ["class"],
 	content: [
@@ -8,6 +10,10 @@ export default {
 	],
 	theme: {
 		extend: {
+			fontFamily: {
+        sans: ['var(--font-work-sans)', ...fontFamily.sans],
+        rubik: ['var(--font-rubik)', ...fontFamily.sans], // Added Rubik as a secondary/utility
+      },
 			colors: {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
@@ -48,13 +54,25 @@ export default {
 					'3': 'hsl(var(--chart-3))',
 					'4': 'hsl(var(--chart-4))',
 					'5': 'hsl(var(--chart-5))'
-				}
+				},
+        // Retro colors merged into the primary colors object
+        'retro-background': '#F3EADA',
+        'retro-text': '#3A3A3A',
+        'retro-headline': '#D9534F',
+        'retro-subheadline': '#5A5A5A',
+        'retro-cta': '#FFC107',
+        'retro-cta-text': '#3A3A3A',
+        'retro-cta-hover': '#E0A800',
+        'retro-card-bg': '#FFFFFF',
+        'retro-card-title': '#D9534F',
+        'retro-card-text': '#3A3A3A',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
-			}
+			},
+      // The second 'colors' object has been removed.
 		}
 	},
 	plugins: [require("tailwindcss-animate")]

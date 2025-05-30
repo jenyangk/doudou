@@ -1,62 +1,71 @@
 "use client"
 
-"use client"
-
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs"; // Import useUser
-import { QrCodeIcon } from 'lucide-react';
+// QrCodeIcon is no longer used after removing session list
+// import { QrCodeIcon } from 'lucide-react';
 
-// Supabase import removed as src/lib/supabase.ts was deleted
-// import { supabase } from "@/lib/supabase"; 
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+// Separator is not used
+// import { Separator } from "@/components/ui/separator";
 
-interface Session {
-    id: number;
-    sessionName: string;
-    sessionCode: string;
-    createdAt: Date;
-}
+// Session interface is no longer needed here
+// interface Session {
+//     id: number;
+//     sessionName: string;
+//     sessionCode: string;
+//     createdAt: Date;
+// }
 
 export default function CreateSession() {
     const router = useRouter();
-    const { isSignedIn, user } = useUser(); // Use Clerk's useUser hook
+    const [isGoogleUser, setIsGoogleUser] = useState(false);
     const [sessionName, setSessionName] = useState('');
     const [maxUploadsPerUser, setMaxUploadsPerUser] = useState(1);
     const [maxVotesPerUser, setMaxVotesPerUser] = useState(3);
-    // const [userSessions, setUserSessions] = useState<Session[]>([]); // Removed: Supabase data fetching
+    // userSessions state is removed
+    // const [userSessions, setUserSessions] = useState<Session[]>([]);
 
-    // Removed useEffect for fetching user sessions as Supabase client is not available
-    // useEffect(() => {
-    //     const fetchUserSessions = async () => {
-    //         if (isSignedIn && user && supabase) { // Check if supabase is defined
-    //             const { data: sessions, error: sessionsError } = await supabase
-    //                 .from('sessions')
-    //                 .select('id, sessionName, sessionCode, createdAt')
-    //                 .eq('createdBy', user.id) // Use user.id from Clerk
-    //                 .order('createdAt', { ascending: false });
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
 
-    //             if (sessionsError) {
-    //                 toast.error('Error fetching sessions');
-    //                 return;
-    //             }
-    //             setUserSessions(sessions as Session[]);
-    //         } else {
-    //             setUserSessions([]); // Clear sessions if user is not signed in
-    //         }
-    //     };
+            if (!session?.user) {
+                setIsGoogleUser(false);
+                return;
+            }
 
-    //     fetchUserSessions();
-    // }, [isSignedIn, user]); // Re-run effect when isSignedIn or user changes
+            // Check if user is authenticated with Google
+            const isGoogle = !session.user.is_anonymous;
+            setIsGoogleUser(isGoogle);
+
+            // Removed session fetching logic from here
+            // if (isGoogle) { ... }
+        };
+
+        checkAuth();
+    }, []);
+
+    const handleLogin = async () => {
+        await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                }
+            },
+        });
+    };
 
     const createSession = async () => {
-        if (!isSignedIn || !user) {
-            toast.error('Please sign in to create a session.');
+        if (!isGoogleUser) {
+            toast.error('Please sign in with Google to create a session');
             return;
         }
 
@@ -68,92 +77,59 @@ export default function CreateSession() {
             return;
         }
 
-        // Supabase data operation removed
-        // const { data: createdSession, error } = await supabase
-        //     .from('sessions')
-        //     .insert([{ sessionName: sessionName, sessionCode: newSessionCode, createdBy: user.id, maxUpload: maxUploadsPerUser, maxVoteAmount: maxVotesPerUser }])
-        //     .select('id');
+        const createdSession = await supabase
+            .from('sessions')
+            .insert([{ sessionName: sessionName, sessionCode: newSessionCode, createdBy: (await supabase.auth.getUser()).data.user?.id, maxUpload: maxUploadsPerUser, maxVoteAmount: maxVotesPerUser }])
+            .select('id');
 
-        // if (error) {
-        //     toast.error(error.message || 'Error creating session. Please try again');
-        // } else if (createdSession) {
-        // router.push('/sessions/' + newSessionCode);
-        // } else {
-        //     toast.error('Error creating session. Please try again');
-        // }
-        toast.info("Session creation is temporarily disabled. User ID: " + user.id + " Session Code: " + newSessionCode );
-        // router.push('/sessions/' + newSessionCode); // Simulate navigation for UI testing
+        if (createdSession) {
+            router.push('/sessions/' + newSessionCode);
+        } else {
+            toast.error('Error creating session. Please try again');
+        }
     };
 
     return (
+        // The outer div with space-y-4 might not be needed if it's just one card now.
+        // Keeping it for now as it doesn't harm.
         <div className="space-y-4">
-            <Card>
+            <Card className="bg-retro-card-bg border-retro-text/10 shadow-lg">
                 <CardHeader>
-                    <CardTitle>Create a Session</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-retro-card-title">Create a Session</CardTitle>
+                    <CardDescription className="text-retro-subheadline">
                         Create a new voting session
                     </CardDescription>
                 </CardHeader>
-                {isSignedIn ? (
+                {isGoogleUser ? (
                     <CardContent className="space-y-2">
                         <div className="space-y-1">
-                            <Label htmlFor="sessionName">Session Name</Label>
-                            <Input id="sessionName" placeholder="My Session" required value={sessionName} onChange={(e) => setSessionName(e.target.value)} />
+                            <Label htmlFor="sessionName" className="text-retro-text">Session Name</Label>
+                            <Input id="sessionName" placeholder="My Awesome Session" required onChange={(e) => setSessionName(e.target.value)} className="bg-white border-retro-text/30 focus:border-retro-cta focus:ring-retro-cta" />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="maxUploads">Maximum Uploads Per User</Label>
-                            <Input id="maxUploads" type="number" placeholder="1" min={1} required value={maxUploadsPerUser} onChange={(e) => setMaxUploadsPerUser(parseInt(e.target.value))} />
+                            <Label htmlFor="maxUploads" className="text-retro-text">Maximum Uploads Per User</Label>
+                            <Input id="maxUploads" type="number" placeholder="1" min={1} required value={maxUploadsPerUser} onChange={(e) => setMaxUploadsPerUser(parseInt(e.target.value))} className="bg-white border-retro-text/30 focus:border-retro-cta focus:ring-retro-cta" />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="maxVotes">Maximum Votes Per User</Label>
-                            <Input id="maxVotes" type="number" placeholder="3" min={1} required value={maxVotesPerUser} onChange={(e) => setMaxVotesPerUser(parseInt(e.target.value))} />
+                            <Label htmlFor="maxVotes" className="text-retro-text">Maximum Votes Per User</Label>
+                            <Input id="maxVotes" type="number" placeholder="3" min={1} required value={maxVotesPerUser} onChange={(e) => setMaxVotesPerUser(parseInt(e.target.value))} className="bg-white border-retro-text/30 focus:border-retro-cta focus:ring-retro-cta" />
                         </div>
                     </CardContent>
                 ) : (
                     <CardContent>
-                        <p className="text-sm text-gray-500">Please sign in to create and manage sessions.</p>
+                        <p className="text-sm text-retro-subheadline">Sign in with Google to create and manage sessions.</p>
                     </CardContent>
                 )}
                 <CardFooter>
-                    <Button onClick={createSession} className="w-full" disabled={!isSignedIn}>
-                        Create
-                    </Button>
+                    {isGoogleUser ? (
+                        <Button onClick={createSession} className="w-full bg-retro-cta text-retro-cta-text hover:bg-retro-cta-hover">Create</Button>
+                    ) : (
+                        <Button onClick={handleLogin} className="w-full bg-retro-cta text-retro-cta-text hover:bg-retro-cta-hover">Sign in with Google</Button>
+                    )}
                 </CardFooter>
             </Card>
 
-            {/* Display of user sessions removed as Supabase client is not available */}
-            {/* {isSignedIn && userSessions.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Your Sessions</CardTitle>
-                        <CardDescription>
-                            Sessions you've created
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
-                            {userSessions.map((session) => (
-                                <div
-                                    key={session.id}
-                                    className="flex items-center justify-between p-2 hover:bg-gray-100 rounded-md cursor-pointer"
-                                    onClick={() => router.push(`/sessions/${session.sessionCode}`)}
-                                >
-                                    <div>
-                                        <p className="font-medium">{session.sessionName}</p>
-                                        <p className="text-sm text-gray-500">
-                                            {new Date(session.createdAt).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-gray-500">{session.sessionCode}</span>
-                                        <QrCodeIcon className="w-4 h-4 text-gray-500" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )} */}
+            {/* Removed the redundant "Your Sessions" display section */}
         </div>
     );
 }
