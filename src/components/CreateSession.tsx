@@ -1,16 +1,12 @@
 "use client"
 
-"use client"
-
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 // QrCodeIcon is no longer used after removing session list
 // import { QrCodeIcon } from 'lucide-react';
 
-
-// Supabase import removed as src/lib/supabase.ts was deleted
-// import { supabase } from "@/lib/supabase"; 
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,38 +24,48 @@ import { Label } from "@/components/ui/label";
 
 export default function CreateSession() {
     const router = useRouter();
-    const { isSignedIn, user } = useUser(); // Use Clerk's useUser hook
+    const [isGoogleUser, setIsGoogleUser] = useState(false);
     const [sessionName, setSessionName] = useState('');
     const [maxUploadsPerUser, setMaxUploadsPerUser] = useState(1);
     const [maxVotesPerUser, setMaxVotesPerUser] = useState(3);
-    // const [userSessions, setUserSessions] = useState<Session[]>([]); // Removed: Supabase data fetching
+    // userSessions state is removed
+    // const [userSessions, setUserSessions] = useState<Session[]>([]);
 
-    // Removed useEffect for fetching user sessions as Supabase client is not available
-    // useEffect(() => {
-    //     const fetchUserSessions = async () => {
-    //         if (isSignedIn && user && supabase) { // Check if supabase is defined
-    //             const { data: sessions, error: sessionsError } = await supabase
-    //                 .from('sessions')
-    //                 .select('id, sessionName, sessionCode, createdAt')
-    //                 .eq('createdBy', user.id) // Use user.id from Clerk
-    //                 .order('createdAt', { ascending: false });
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
 
-    //             if (sessionsError) {
-    //                 toast.error('Error fetching sessions');
-    //                 return;
-    //             }
-    //             setUserSessions(sessions as Session[]);
-    //         } else {
-    //             setUserSessions([]); // Clear sessions if user is not signed in
-    //         }
-    //     };
+            if (!session?.user) {
+                setIsGoogleUser(false);
+                return;
+            }
 
-    //     fetchUserSessions();
-    // }, [isSignedIn, user]); // Re-run effect when isSignedIn or user changes
+            // Check if user is authenticated with Google
+            const isGoogle = !session.user.is_anonymous;
+            setIsGoogleUser(isGoogle);
+
+            // Removed session fetching logic from here
+            // if (isGoogle) { ... }
+        };
+
+        checkAuth();
+    }, []);
+
+    const handleLogin = async () => {
+        await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                }
+            },
+        });
+    };
 
     const createSession = async () => {
-        if (!isSignedIn || !user) {
-            toast.error('Please sign in to create a session.');
+        if (!isGoogleUser) {
+            toast.error('Please sign in with Google to create a session');
             return;
         }
 
@@ -71,21 +77,16 @@ export default function CreateSession() {
             return;
         }
 
-        // Supabase data operation removed
-        // const { data: createdSession, error } = await supabase
-        //     .from('sessions')
-        //     .insert([{ sessionName: sessionName, sessionCode: newSessionCode, createdBy: user.id, maxUpload: maxUploadsPerUser, maxVoteAmount: maxVotesPerUser }])
-        //     .select('id');
+        const createdSession = await supabase
+            .from('sessions')
+            .insert([{ sessionName: sessionName, sessionCode: newSessionCode, createdBy: (await supabase.auth.getUser()).data.user?.id, maxUpload: maxUploadsPerUser, maxVoteAmount: maxVotesPerUser }])
+            .select('id');
 
-        // if (error) {
-        //     toast.error(error.message || 'Error creating session. Please try again');
-        // } else if (createdSession) {
-        // router.push('/sessions/' + newSessionCode);
-        // } else {
-        //     toast.error('Error creating session. Please try again');
-        // }
-        toast.info("Session creation is temporarily disabled. User ID: " + user.id + " Session Code: " + newSessionCode );
-        // router.push('/sessions/' + newSessionCode); // Simulate navigation for UI testing
+        if (createdSession) {
+            router.push('/sessions/' + newSessionCode);
+        } else {
+            toast.error('Error creating session. Please try again');
+        }
     };
 
     return (
@@ -99,7 +100,7 @@ export default function CreateSession() {
                         Create a new voting session
                     </CardDescription>
                 </CardHeader>
-                {isSignedIn ? (
+                {isGoogleUser ? (
                     <CardContent className="space-y-2">
                         <div className="space-y-1">
                             <Label htmlFor="sessionName" className="text-retro-text">Session Name</Label>
@@ -120,11 +121,15 @@ export default function CreateSession() {
                     </CardContent>
                 )}
                 <CardFooter>
-                    <Button onClick={createSession} className="w-full" disabled={!isSignedIn}>
-                        Create
-                    </Button>
+                    {isGoogleUser ? (
+                        <Button onClick={createSession} className="w-full bg-retro-cta text-retro-cta-text hover:bg-retro-cta-hover">Create</Button>
+                    ) : (
+                        <Button onClick={handleLogin} className="w-full bg-retro-cta text-retro-cta-text hover:bg-retro-cta-hover">Sign in with Google</Button>
+                    )}
                 </CardFooter>
             </Card>
+
+            {/* Removed the redundant "Your Sessions" display section */}
         </div>
     );
 }

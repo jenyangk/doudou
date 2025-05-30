@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import { User } from '@supabase/supabase-js'; // Import User type
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabase";
+// import { supabase } from "@/lib/supabase"; // Removed as per instruction
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
