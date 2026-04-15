@@ -22,3 +22,27 @@
   "include": ["src/**/*", "worker.ts"],
   "exclude": ["node_modules", "dist"]
 }
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "paths": {
+      "@api/*": ["./src/api/*"],
+      "@client/*": ["./src/client/*"],
+      "@shared/*": ["./src/shared/*"]
+    },
+    "types": ["@cloudflare/workers-types", "vite/client"]
+  },
+  "include": ["src/**/*", "worker.ts"],
+  "exclude": ["node_modules", "dist"]
+}
