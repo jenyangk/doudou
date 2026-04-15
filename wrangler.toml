@@ -1,0 +1,27 @@
+name = "doudou"
+main = "worker.ts"
+compatibility_date = "2025-04-01"
+
+[assets]
+directory = "dist/client"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "doudou-db"
+database_id = "local"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "doudou-images"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "local"
+
+[[durable_objects.bindings]]
+name = "SESSION_ROOM"
+class_name = "SessionRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["SessionRoom"]
