@@ -1,4 +1,5 @@
 import { api } from "./src/api/index";
+export { SessionRoom } from "./src/api/durable-objects/session-room";
 
 export default {
   async fetch(request: Request, env: any, ctx: ExecutionContext): Promise<Response> {

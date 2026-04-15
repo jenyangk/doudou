@@ -3,6 +3,10 @@ import { cors } from "hono/cors";
 import type { Env } from "../shared/types";
 import { errorHandler } from "./middleware/error";
 import { createAuth } from "./auth";
+import { sessions } from "./routes/sessions";
+import { images } from "./routes/images";
+import { votes } from "./routes/votes";
+import { ws } from "./routes/ws";
 
 export type AppType = { Bindings: Env };
 
@@ -20,15 +24,14 @@ api.use(
 
 api.get("/health", (c) => c.json({ status: "ok" }));
 
-// Better Auth handler — handles all /api/auth/* routes
 api.all("/auth/*", async (c) => {
   const auth = createAuth(c.env);
   return auth.handler(c.req.raw);
 });
 
-// Route groups will be mounted here in later tasks:
-// api.route("/sessions", sessionRoutes)
-// api.route("/images", imageRoutes)
-// api.route("/votes", voteRoutes)
+api.route("/sessions", sessions);
+api.route("/", images);
+api.route("/sessions", votes);
+api.route("/sessions", ws);
 
 export { api };
