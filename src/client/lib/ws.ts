@@ -5,11 +5,13 @@ interface UseSessionSocketReturn {
   lastEvent: () => WsEvent | null;
   connected: () => boolean;
   reconnect: () => void;
+  presenceCount: () => number;
 }
 
 export function createSessionSocket(sessionId: string): UseSessionSocketReturn {
   const [lastEvent, setLastEvent] = createSignal<WsEvent | null>(null);
   const [connected, setConnected] = createSignal(false);
+  const [presenceCount, setPresenceCount] = createSignal(0);
 
   let ws: WebSocket | null = null;
   let retries = 0;
@@ -31,6 +33,9 @@ export function createSessionSocket(sessionId: string): UseSessionSocketReturn {
       try {
         const data = JSON.parse(event.data) as WsEvent;
         setLastEvent(data);
+        if (data.type === "presence-count") {
+          setPresenceCount(data.data.count);
+        }
       } catch {
         console.error("Invalid WebSocket message:", event.data);
       }
@@ -66,5 +71,5 @@ export function createSessionSocket(sessionId: string): UseSessionSocketReturn {
   connect();
   onCleanup(cleanup);
 
-  return { lastEvent, connected, reconnect };
+  return { lastEvent, connected, reconnect, presenceCount };
 }

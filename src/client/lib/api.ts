@@ -3,6 +3,7 @@ import type {
   ImageResponse,
   VoteResponse,
   ResultItem,
+  RoundResponse,
   ApiError,
 } from "@shared/types";
 import type { CreateSessionInput, CastVoteInput } from "@shared/validation";
@@ -39,12 +40,6 @@ export const createSession = (data: CreateSessionInput) =>
     body: JSON.stringify(data),
   });
 
-export const updateSession = (id: string, data: { uploadOpen?: boolean; votingOpen?: boolean }) =>
-  request<SessionResponse>(`/sessions/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
-
 export const getImages = (sessionId: string) =>
   request<ImageResponse[]>(`/sessions/${sessionId}/images`);
 
@@ -71,6 +66,36 @@ export const getMyVotes = (sessionId: string) =>
 
 export const getResults = (sessionId: string) =>
   request<ResultItem[]>(`/sessions/${sessionId}/results`);
+
+export const getMySessions = () =>
+  request<SessionResponse[]>("/sessions/mine");
+
+export const getRounds = (sessionId: string) =>
+  request<RoundResponse[]>(`/sessions/${sessionId}/rounds`);
+
+export const startVoting = (sessionId: string, roundNumber: number) =>
+  request<RoundResponse>(`/sessions/${sessionId}/rounds/${roundNumber}/start-voting`, {
+    method: "PUT",
+  });
+
+export const closeVoting = (sessionId: string, roundNumber: number) =>
+  request<RoundResponse>(`/sessions/${sessionId}/rounds/${roundNumber}/close-voting`, {
+    method: "PUT",
+  });
+
+export const advanceRound = (sessionId: string) =>
+  request<{ success: boolean; currentRound: number }>(`/sessions/${sessionId}/advance-round`, {
+    method: "PUT",
+  });
+
+export const getImagesForRound = (sessionId: string, round: number) =>
+  request<ImageResponse[]>(`/sessions/${sessionId}/images?round=${round}`);
+
+export const getMyVotesForRound = (sessionId: string, round: number) =>
+  request<VoteResponse[]>(`/sessions/${sessionId}/votes/mine?round=${round}`);
+
+export const getResultsForRound = (sessionId: string, round: number | "overall") =>
+  request<ResultItem[]>(`/sessions/${sessionId}/results?round=${round}`);
 
 export async function uploadImage(
   sessionId: string,
