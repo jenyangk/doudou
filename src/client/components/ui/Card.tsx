@@ -7,7 +7,7 @@ interface CardProps {
 
 export function Card(props: CardProps) {
   return (
-    <div class={`rounded-lg border border-gray-200 bg-white shadow-sm ${props.class ?? ""}`}>
+    <div class={`rounded-dd-card border-[3px] border-dd-border bg-dd-card shadow-dd-card ${props.class ?? ""}`}>
       {props.children}
     </div>
   );
@@ -23,7 +23,7 @@ export function CardHeader(props: CardProps) {
 
 export function CardTitle(props: CardProps) {
   return (
-    <h3 class={`text-xl font-semibold leading-none tracking-tight ${props.class ?? ""}`}>
+    <h3 class={`text-xl font-display font-bold leading-none tracking-tight text-dd-text ${props.class ?? ""}`}>
       {props.children}
     </h3>
   );
@@ -31,7 +31,7 @@ export function CardTitle(props: CardProps) {
 
 export function CardDescription(props: CardProps) {
   return (
-    <p class={`text-sm text-gray-500 ${props.class ?? ""}`}>
+    <p class={`text-sm font-body text-dd-text-muted ${props.class ?? ""}`}>
       {props.children}
     </p>
   );
