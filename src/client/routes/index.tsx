@@ -1,6 +1,7 @@
 import { createSignal } from "solid-js";
 import { CreateSession } from "../components/CreateSession";
 import { JoinSession } from "../components/JoinSession";
+import { MySessionsList } from "../components/MySessionsList";
 import { TabSwitcher } from "../components/ui/TabSwitcher";
 import { PageTransition } from "../components/PageTransition";
 
@@ -21,6 +22,8 @@ export default function Home() {
         />
 
         {tab() === "create" ? <CreateSession /> : <JoinSession />}
+
+        <MySessionsList />
       </div>
     </PageTransition>
   );

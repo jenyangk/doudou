@@ -14,6 +14,8 @@ export function CreateSession() {
   const [name, setName] = createSignal("");
   const [maxUploads, setMaxUploads] = createSignal(1);
   const [maxVotes, setMaxVotes] = createSignal(3);
+  const [totalRounds, setTotalRounds] = createSignal(1);
+  const [votingDuration, setVotingDuration] = createSignal<number | null>(null);
   const [loading, setLoading] = createSignal(false);
 
   const isSignedIn = () => !!session()?.data?.user;
@@ -30,6 +32,8 @@ export function CreateSession() {
         name: name(),
         maxUploadsPerUser: maxUploads(),
         maxVotesPerUser: maxVotes(),
+        totalRounds: totalRounds(),
+        votingDurationMinutes: votingDuration(),
       });
       toast.success("Session created!");
       navigate({ to: "/sessions/$code", params: { code: result.code } });
@@ -85,6 +89,35 @@ export function CreateSession() {
               value={maxVotes()}
               onInput={(e) => setMaxVotes(parseInt(e.currentTarget.value) || 3)}
             />
+          </div>
+          <div class="space-y-1">
+            <label class="text-sm font-display font-bold text-dd-text" for="total-rounds">Number of Rounds</label>
+            <Input
+              id="total-rounds"
+              type="number"
+              min={1}
+              max={10}
+              value={totalRounds()}
+              onInput={(e) => setTotalRounds(parseInt(e.currentTarget.value) || 1)}
+            />
+          </div>
+          <div class="space-y-1">
+            <label class="text-sm font-display font-bold text-dd-text" for="voting-timer">Voting Timer (minutes)</label>
+            <select
+              id="voting-timer"
+              class="flex h-11 w-full rounded-dd-pill border-[3px] border-dd-border bg-white px-4 py-2 font-body text-base text-dd-text"
+              onChange={(e) => {
+                const val = e.currentTarget.value;
+                setVotingDuration(val === "" ? null : parseInt(val));
+              }}
+            >
+              <option value="">No limit</option>
+              <option value="5">5 minutes</option>
+              <option value="10">10 minutes</option>
+              <option value="15">15 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="60">60 minutes</option>
+            </select>
           </div>
         </CardContent>
         <CardFooter>
