@@ -31,10 +31,10 @@ export function JoinSession() {
         <form onSubmit={handleJoin} class="space-y-4">
           <Input
             type="text"
-            placeholder="Session Code"
+            placeholder="SESSION CODE"
             value={code()}
             onInput={(e) => setCode(e.currentTarget.value)}
-            class="text-center text-lg uppercase"
+            class="text-center text-lg uppercase tracking-[4px] font-display font-bold"
             maxLength={6}
             required
           />

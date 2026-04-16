@@ -50,13 +50,13 @@ export function CreateSession() {
         when={isSignedIn()}
         fallback={
           <CardContent>
-            <p class="text-sm text-gray-500">Please sign in to create sessions.</p>
+            <p class="text-sm font-body text-dd-text-muted">Please sign in to create sessions.</p>
           </CardContent>
         }
       >
         <CardContent class="space-y-4">
           <div class="space-y-1">
-            <label class="text-sm font-medium" for="session-name">Session Name</label>
+            <label class="text-sm font-display font-bold text-dd-text" for="session-name">Session Name</label>
             <Input
               id="session-name"
               placeholder="My Competition"
@@ -65,7 +65,7 @@ export function CreateSession() {
             />
           </div>
           <div class="space-y-1">
-            <label class="text-sm font-medium" for="max-uploads">Max Uploads Per User</label>
+            <label class="text-sm font-display font-bold text-dd-text" for="max-uploads">Max Uploads Per User</label>
             <Input
               id="max-uploads"
               type="number"
@@ -76,7 +76,7 @@ export function CreateSession() {
             />
           </div>
           <div class="space-y-1">
-            <label class="text-sm font-medium" for="max-votes">Max Votes Per User</label>
+            <label class="text-sm font-display font-bold text-dd-text" for="max-votes">Max Votes Per User</label>
             <Input
               id="max-votes"
               type="number"
