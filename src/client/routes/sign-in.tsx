@@ -4,6 +4,7 @@ import { authClient, useSession } from "../lib/auth-client";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/Card";
+import { PageTransition } from "../components/PageTransition";
 import toast from "solid-toast";
 
 export default function SignIn() {
@@ -52,7 +53,8 @@ export default function SignIn() {
   };
 
   return (
-    <div class="flex items-center justify-center min-h-[80vh] px-4">
+    <PageTransition>
+      <div class="flex items-center justify-center min-h-[80vh] px-4">
       <Card class="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Sign In</CardTitle>
@@ -79,8 +81,8 @@ export default function SignIn() {
             }
           >
             <form onSubmit={verifyOtp} class="space-y-4">
-              <p class="text-sm text-gray-500">
-                Code sent to <strong>{email()}</strong>
+              <p class="text-sm font-body text-dd-text-muted">
+                Code sent to <strong class="text-dd-text">{email()}</strong>
               </p>
               <Input
                 type="text"
@@ -88,7 +90,7 @@ export default function SignIn() {
                 value={otp()}
                 onInput={(e) => setOtp(e.currentTarget.value)}
                 maxLength={6}
-                class="text-center text-lg tracking-widest"
+                class="text-center text-lg tracking-[4px] font-display font-bold"
                 required
               />
               <Button type="submit" class="w-full" disabled={loading()}>
@@ -106,6 +108,7 @@ export default function SignIn() {
           </Show>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </PageTransition>
   );
 }
