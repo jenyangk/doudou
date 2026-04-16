@@ -18,7 +18,9 @@ export function Profile() {
     >
       {(user) => (
         <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-600">{user().email}</span>
+          <span class="text-sm font-body font-medium text-dd-text-muted hidden sm:inline">
+            {user().email}
+          </span>
           <Button
             variant="ghost"
             size="sm"
