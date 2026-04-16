@@ -1,14 +1,15 @@
-import { createSignal, createEffect, onMount, Show } from "solid-js";
+import { createSignal, createEffect, onMount, onCleanup, Show } from "solid-js";
 import { useParams, Link } from "@tanstack/solid-router";
 import { useSession } from "../../lib/auth-client";
-import { getSession, getImages, getMyVotes } from "../../lib/api";
+import { getSession, getImages, getMyVotes, getRounds } from "../../lib/api";
 import { createSessionSocket } from "../../lib/ws";
 import { Gallery } from "../../components/Gallery";
 import { ImageUploader } from "../../components/ImageUploader";
 import { SessionDashboard } from "../../components/SessionDashboard";
 import { StatusBanner } from "../../components/ui/StatusBanner";
+import { Badge } from "../../components/ui/Badge";
 import { PageTransition } from "../../components/PageTransition";
-import type { SessionResponse, ImageResponse, VoteResponse } from "@shared/types";
+import type { SessionResponse, ImageResponse, VoteResponse, RoundResponse } from "@shared/types";
 import toast from "solid-toast";
 
 export default function SessionBoard() {
@@ -18,22 +19,27 @@ export default function SessionBoard() {
   const [session, setSession] = createSignal<SessionResponse | null>(null);
   const [images, setImages] = createSignal<ImageResponse[]>([]);
   const [myVotes, setMyVotes] = createSignal<VoteResponse[]>([]);
+  const [rounds, setRounds] = createSignal<RoundResponse[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
+  const [presenceCount, setPresenceCount] = createSignal(0);
 
   const isOwner = () => session()?.createdBy === authSession()?.data?.user?.id;
+  const currentRound = () => rounds().find((r) => r.roundNumber === session()?.currentRound);
 
   const fetchData = async () => {
     try {
       const sess = await getSession(params().code);
       setSession(sess);
 
-      const [imgs, votes] = await Promise.all([
+      const [imgs, votes, rds] = await Promise.all([
         getImages(sess.id),
         getMyVotes(sess.id),
+        getRounds(sess.id),
       ]);
       setImages(imgs);
       setMyVotes(votes);
+      setRounds(rds);
     } catch (err: any) {
       setError(err.error ?? "Failed to load session");
     } finally {
@@ -47,7 +53,11 @@ export default function SessionBoard() {
     const sess = session();
     if (!sess) return;
 
-    const { lastEvent } = createSessionSocket(sess.id);
+    const { lastEvent, presenceCount: pc } = createSessionSocket(sess.id);
+
+    createEffect(() => {
+      setPresenceCount(pc());
+    });
 
     createEffect(() => {
       const event = lastEvent();
@@ -62,18 +72,24 @@ export default function SessionBoard() {
           break;
         case "vote-cast":
           if (event.data.userId === authSession()?.data?.user?.id) {
-            getMyVotes(sess.id).then(setMyVotes);
+            const sess = session();
+            if (sess) getMyVotes(sess.id).then(setMyVotes);
           }
           break;
         case "vote-removed":
           if (event.data.userId === authSession()?.data?.user?.id) {
-            getMyVotes(sess.id).then(setMyVotes);
+            const sess = session();
+            if (sess) getMyVotes(sess.id).then(setMyVotes);
           }
           break;
         case "session-updated":
           setSession((prev) =>
             prev ? { ...prev, uploadOpen: event.data.uploadOpen, votingOpen: event.data.votingOpen } : prev
           );
+          fetchData(); // Refresh rounds too
+          break;
+        case "round-advanced":
+          fetchData(); // Full refresh on round change
           break;
       }
     });
@@ -91,27 +107,36 @@ export default function SessionBoard() {
             <Show when={session()}>
               {(sess) => (
                 <div class="space-y-4">
-                  {/* Status Banner */}
-                  <StatusBanner variant={sess().votingOpen ? "success" : "warning"}>
-                    {sess().votingOpen ? (
-                      <span>Voting Open — {sess().maxVotesPerUser - myVotes().length} votes remaining</span>
-                    ) : (
-                      <span>
-                        Voting Closed —{" "}
-                        <Link
-                          to="/sessions/$code/results"
-                          params={{ code: params().code }}
-                          class="underline hover:no-underline"
-                        >
-                          View Results
-                        </Link>
-                      </span>
-                    )}
-                  </StatusBanner>
+                  {/* Status Banner with presence count */}
+                  <div class="flex items-center gap-2">
+                    <StatusBanner
+                      variant={sess().votingOpen ? "success" : "warning"}
+                      class="flex-1"
+                    >
+                      {sess().votingOpen ? (
+                        <span>Voting Open — {sess().maxVotesPerUser - myVotes().length} votes remaining</span>
+                      ) : sess().uploadOpen ? (
+                        <span>Uploads Open — Round {sess().currentRound}{sess().totalRounds > 1 ? ` of ${sess().totalRounds}` : ""}</span>
+                      ) : (
+                        <span>
+                          Round Closed —{" "}
+                          <Link
+                            to="/sessions/$code/results"
+                            params={{ code: params().code }}
+                            class="underline hover:no-underline"
+                          >
+                            View Results
+                          </Link>
+                        </span>
+                      )}
+                    </StatusBanner>
+                    <Show when={presenceCount() > 0}>
+                      <Badge variant="secondary">👥 {presenceCount()}</Badge>
+                    </Show>
+                  </div>
 
-                  {/* Responsive layout: stacked on mobile, sidebar on md+ */}
+                  {/* Responsive layout */}
                   <div class="flex flex-col md:flex-row gap-4">
-                    {/* Main: Gallery */}
                     <div class="flex-1 min-w-0">
                       <Gallery
                         images={images()}
@@ -119,15 +144,16 @@ export default function SessionBoard() {
                         sessionId={sess().id}
                         votingOpen={sess().votingOpen}
                         maxVotes={sess().maxVotesPerUser}
+                        isOwner={isOwner()}
                         onVoteChange={fetchData}
                       />
                     </div>
 
-                    {/* Sidebar: Dashboard + Uploader (on md+) */}
                     <div class="w-full md:w-72 shrink-0 space-y-4 order-first md:order-last">
                       <Show when={isOwner()}>
                         <SessionDashboard
                           session={sess()}
+                          currentRound={currentRound()}
                           imageCount={images().length}
                           onSessionUpdate={fetchData}
                         />
