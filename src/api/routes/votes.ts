@@ -35,8 +35,12 @@ votes.post("/:id/votes", requireAuth, async (c) => {
     return c.json({ error: "Session not found", code: "NOT_FOUND" }, 404);
   }
 
-  if (!session.voting_open) {
-    return c.json({ error: "Voting is closed for this session", code: "VOTING_CLOSED" }, 403);
+  const currentRound = await c.env.DB.prepare(
+    "SELECT id FROM rounds WHERE session_id = ? AND status = 'voting'"
+  ).bind(sessionId).first<{ id: string }>();
+
+  if (!currentRound) {
+    return c.json({ error: "Voting is closed", code: "VOTING_CLOSED" }, 403);
   }
 
   const image = await c.env.DB.prepare(
@@ -50,10 +54,8 @@ votes.post("/:id/votes", requireAuth, async (c) => {
   }
 
   const { count } = await c.env.DB.prepare(
-    "SELECT COUNT(*) as count FROM votes WHERE session_id = ? AND user_id = ?"
-  )
-    .bind(sessionId, userId)
-    .first<{ count: number }>() ?? { count: 0 };
+    "SELECT COUNT(*) as count FROM votes WHERE session_id = ? AND user_id = ? AND round_id = ?"
+  ).bind(sessionId, userId, currentRound.id).first<{ count: number }>() ?? { count: 0 };
 
   if (count >= session.max_votes_per_user) {
     return c.json(
@@ -64,11 +66,11 @@ votes.post("/:id/votes", requireAuth, async (c) => {
 
   try {
     const row = await c.env.DB.prepare(
-      `INSERT INTO votes (session_id, user_id, image_id)
-       VALUES (?, ?, ?)
+      `INSERT INTO votes (session_id, user_id, image_id, round_id)
+       VALUES (?, ?, ?, ?)
        RETURNING *`
     )
-      .bind(sessionId, userId, imageId)
+      .bind(sessionId, userId, imageId, currentRound.id)
       .first<Vote>();
 
     if (!row) {
@@ -79,6 +81,7 @@ votes.post("/:id/votes", requireAuth, async (c) => {
       id: row.id,
       imageId: row.image_id,
       userId: row.user_id,
+      roundId: row.round_id,
       createdAt: row.created_at,
     };
 
@@ -127,21 +130,26 @@ votes.delete("/:id/votes/:imageId", requireAuth, async (c) => {
 // GET /api/sessions/:id/results — vote tallies
 votes.get("/:id/results", requireAuth, async (c) => {
   const sessionId = c.req.param("id");
+  const roundParam = c.req.query("round");
+  let roundFilter = "";
+  const binds: (string | number)[] = [sessionId];
+
+  if (roundParam && roundParam !== "overall") {
+    const round = await c.env.DB.prepare("SELECT id FROM rounds WHERE session_id = ? AND round_number = ?")
+      .bind(sessionId, parseInt(roundParam)).first<{ id: string }>();
+    if (round) {
+      roundFilter = " AND si.round_id = ?";
+      binds.push(round.id);
+    }
+  }
 
   const { results } = await c.env.DB.prepare(
-    `SELECT
-       si.id as imageId,
-       si.r2_key as r2Key,
-       si.filename,
-       COUNT(v.id) as voteCount
+    `SELECT si.id as imageId, si.r2_key as r2Key, si.filename, COUNT(v.id) as voteCount
      FROM session_images si
-     LEFT JOIN votes v ON v.image_id = si.id
-     WHERE si.session_id = ?
-     GROUP BY si.id
-     ORDER BY voteCount DESC, si.created_at ASC`
-  )
-    .bind(sessionId)
-    .all<ResultItem>();
+     LEFT JOIN votes v ON v.image_id = si.id${roundParam && roundParam !== "overall" ? " AND v.round_id = si.round_id" : ""}
+     WHERE si.session_id = ?${roundFilter}
+     GROUP BY si.id ORDER BY voteCount DESC, si.created_at ASC`
+  ).bind(...binds).all<ResultItem>();
 
   return c.json(results);
 });
@@ -150,17 +158,25 @@ votes.get("/:id/results", requireAuth, async (c) => {
 votes.get("/:id/votes/mine", requireAuth, async (c) => {
   const sessionId = c.req.param("id");
   const userId = c.get("userId");
+  const roundParam = c.req.query("round");
+  let query = "SELECT * FROM votes WHERE session_id = ? AND user_id = ?";
+  const binds: (string | number)[] = [sessionId, userId];
 
-  const { results } = await c.env.DB.prepare(
-    "SELECT * FROM votes WHERE session_id = ? AND user_id = ?"
-  )
-    .bind(sessionId, userId)
-    .all<Vote>();
+  if (roundParam) {
+    const round = await c.env.DB.prepare("SELECT id FROM rounds WHERE session_id = ? AND round_number = ?")
+      .bind(sessionId, parseInt(roundParam)).first<{ id: string }>();
+    if (round) {
+      query += " AND round_id = ?";
+      binds.push(round.id);
+    }
+  }
+  const { results } = await c.env.DB.prepare(query).bind(...binds).all<Vote>();
 
   const response: VoteResponse[] = results.map((v) => ({
     id: v.id,
     imageId: v.image_id,
     userId: v.user_id,
+    roundId: v.round_id,
     createdAt: v.created_at,
   }));
 

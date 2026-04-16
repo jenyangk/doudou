@@ -15,6 +15,7 @@ function toImageResponse(row: SessionImage): ImageResponse {
     r2Key: row.r2_key,
     filename: row.filename,
     mimeType: row.mime_type,
+    roundId: row.round_id,
     createdAt: row.created_at,
   };
 }
@@ -36,12 +37,20 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 // GET /api/sessions/:id/images — list images in session
 images.get("/sessions/:id/images", requireAuth, async (c) => {
   const sessionId = c.req.param("id");
+  const roundParam = c.req.query("round");
+  let query = "SELECT * FROM session_images WHERE session_id = ?";
+  const binds: (string | number)[] = [sessionId];
 
-  const { results } = await c.env.DB.prepare(
-    "SELECT * FROM session_images WHERE session_id = ? ORDER BY created_at ASC"
-  )
-    .bind(sessionId)
-    .all<SessionImage>();
+  if (roundParam) {
+    const round = await c.env.DB.prepare("SELECT id FROM rounds WHERE session_id = ? AND round_number = ?")
+      .bind(sessionId, parseInt(roundParam)).first<{ id: string }>();
+    if (round) {
+      query += " AND round_id = ?";
+      binds.push(round.id);
+    }
+  }
+  query += " ORDER BY created_at ASC";
+  const { results } = await c.env.DB.prepare(query).bind(...binds).all<SessionImage>();
 
   return c.json(results.map(toImageResponse));
 });
@@ -61,15 +70,18 @@ images.post("/sessions/:id/images", requireAuth, async (c) => {
     return c.json({ error: "Session not found", code: "NOT_FOUND" }, 404);
   }
 
-  if (!session.upload_open) {
-    return c.json({ error: "Uploads are closed for this session", code: "UPLOAD_CLOSED" }, 403);
+  // Get current uploading round
+  const currentRound = await c.env.DB.prepare(
+    "SELECT id FROM rounds WHERE session_id = ? AND status = 'uploading'"
+  ).bind(sessionId).first<{ id: string }>();
+
+  if (!currentRound) {
+    return c.json({ error: "No round is accepting uploads", code: "UPLOAD_CLOSED" }, 403);
   }
 
   const { count } = await c.env.DB.prepare(
-    "SELECT COUNT(*) as count FROM session_images WHERE session_id = ? AND user_id = ?"
-  )
-    .bind(sessionId, userId)
-    .first<{ count: number }>() ?? { count: 0 };
+    "SELECT COUNT(*) as count FROM session_images WHERE session_id = ? AND user_id = ? AND round_id = ?"
+  ).bind(sessionId, userId, currentRound.id).first<{ count: number }>() ?? { count: 0 };
 
   if (count >= session.max_uploads_per_user) {
     return c.json(
@@ -111,11 +123,11 @@ images.post("/sessions/:id/images", requireAuth, async (c) => {
   });
 
   const row = await c.env.DB.prepare(
-    `INSERT INTO session_images (id, session_id, user_id, r2_key, filename, mime_type)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO session_images (id, session_id, user_id, r2_key, filename, mime_type, round_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      RETURNING *`
   )
-    .bind(imageId, sessionId, userId, r2Key, file.name, file.type)
+    .bind(imageId, sessionId, userId, r2Key, file.name, file.type, currentRound.id)
     .first<SessionImage>();
 
   if (!row) {
@@ -147,7 +159,10 @@ images.delete("/sessions/:id/images/:imageId", requireAuth, async (c) => {
     return c.json({ error: "Image not found", code: "NOT_FOUND" }, 404);
   }
 
-  if (image.user_id !== userId) {
+  const session = await c.env.DB.prepare("SELECT * FROM competition_sessions WHERE id = ?")
+    .bind(sessionId).first<CompetitionSession>();
+
+  if (image.user_id !== userId && session?.created_by !== userId) {
     return c.json({ error: "You can only delete your own images", code: "FORBIDDEN" }, 403);
   }
 
