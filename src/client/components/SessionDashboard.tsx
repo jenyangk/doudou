@@ -2,6 +2,8 @@ import { Show } from "solid-js";
 import type { SessionResponse } from "@shared/types";
 import { updateSession } from "../lib/api";
 import { Button } from "./ui/Button";
+import { Badge } from "./ui/Badge";
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/Card";
 import toast from "solid-toast";
 
 interface SessionDashboardProps {
@@ -30,30 +32,38 @@ export function SessionDashboard(props: SessionDashboardProps) {
   };
 
   return (
-    <div class="p-4 bg-gray-100 rounded-lg space-y-3">
-      <h2 class="text-lg font-semibold">Dashboard</h2>
-      <div class="grid grid-cols-2 gap-2 items-center text-sm">
-        <span>Total Images:</span>
-        <span class="text-right">{props.imageCount}</span>
+    <Card>
+      <CardHeader>
+        <CardTitle>Dashboard</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="font-body text-sm text-dd-text">Total Images</span>
+          <Badge variant="secondary">{props.imageCount}</Badge>
+        </div>
 
-        <span class={props.session.uploadOpen ? "text-green-600" : "text-red-500"}>
-          {props.session.uploadOpen ? "Uploads Open" : "Uploads Closed"}
-        </span>
-        <div class="text-right">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <Badge variant={props.session.uploadOpen ? "success" : "primary"}>
+              {props.session.uploadOpen ? "Uploads Open" : "Uploads Closed"}
+            </Badge>
+          </div>
           <Button size="sm" variant="ghost" onClick={toggleUploads}>
             {props.session.uploadOpen ? "🔓" : "🔒"}
           </Button>
         </div>
 
-        <span class={props.session.votingOpen ? "text-green-600" : "text-red-500"}>
-          {props.session.votingOpen ? "Voting Open" : "Voting Closed"}
-        </span>
-        <div class="text-right">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <Badge variant={props.session.votingOpen ? "success" : "primary"}>
+              {props.session.votingOpen ? "Voting Open" : "Voting Closed"}
+            </Badge>
+          </div>
           <Button size="sm" variant="ghost" onClick={toggleVoting}>
             {props.session.votingOpen ? "🔓" : "🔒"}
           </Button>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
