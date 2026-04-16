@@ -25,7 +25,7 @@ export default function SessionBoard() {
 
   const fetchData = async () => {
     try {
-      const sess = await getSession(params.code);
+      const sess = await getSession(params().code);
       setSession(sess);
 
       const [imgs, votes] = await Promise.all([
@@ -100,7 +100,7 @@ export default function SessionBoard() {
                         Voting Closed —{" "}
                         <Link
                           to="/sessions/$code/results"
-                          params={{ code: params.code }}
+                          params={{ code: params().code }}
                           class="underline hover:no-underline"
                         >
                           View Results

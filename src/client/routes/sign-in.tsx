@@ -26,7 +26,7 @@ export default function SignIn() {
 
     setLoading(true);
     try {
-      await authClient.emailOtp.sendVerificationOtp({ email: email() });
+      await authClient.emailOtp.sendVerificationOtp({ email: email(), type: "sign-in" });
       setStep("otp");
       toast.success("Check your email for the verification code");
     } catch (err) {

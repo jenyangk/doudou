@@ -16,7 +16,7 @@ export default function Results() {
 
   onMount(async () => {
     try {
-      const sess = await getSession(params.code);
+      const sess = await getSession(params().code);
       setSession(sess);
       const res = await getResults(sess.id);
       setResults(res);
@@ -45,7 +45,7 @@ export default function Results() {
     <PageTransition>
       <div class="container mx-auto px-4 py-4">
         <div class="flex items-center gap-4 mb-6">
-          <Link to="/sessions/$code" params={{ code: params.code }}>
+          <Link to="/sessions/$code" params={{ code: params().code }}>
             <Button variant="ghost" size="sm">← Back</Button>
           </Link>
           <h1 class="text-2xl font-display font-black text-dd-text">Results</h1>

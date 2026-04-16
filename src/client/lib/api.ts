@@ -20,10 +20,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    const err: ApiError = await res.json().catch(() => ({
+    const err = (await res.json().catch(() => ({
       error: "Unknown error",
       code: "INTERNAL_ERROR",
-    }));
+    }))) as ApiError;
     throw err;
   }
 

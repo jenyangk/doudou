@@ -1,0 +1,1 @@
+import{p as n,C as i,i as o,t as s,n as p}from"./index-kwMLNemb.js";var f=s("<div style=opacity:0>");function u(a){let e;return n(()=>{i(e)}),(()=>{var t=f(),r=e;return typeof r=="function"?p(r,t):e=t,o(t,()=>a.children),t})()}export{u as P};

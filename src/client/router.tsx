@@ -3,20 +3,24 @@ import {
   createRootRoute,
   createRoute,
   RouterProvider,
+  type RouteComponent,
 } from "@tanstack/solid-router";
 import { lazy } from "solid-js";
 import { RootLayout } from "./routes/__root";
+
+const lazyRoute = (fn: () => Promise<{ default: () => any }>) =>
+  lazy(fn) as unknown as RouteComponent;
 
 const rootRoute = createRootRoute({
   component: RootLayout,
 });
 
-const Home = lazy(() => import("./routes/index"));
-const SignIn = lazy(() => import("./routes/sign-in"));
-const SessionBoard = lazy(() => import("./routes/sessions/$code"));
-const SessionResults = lazy(() => import("./routes/sessions/$code.results"));
-const ToS = lazy(() => import("./routes/tos"));
-const Policy = lazy(() => import("./routes/policy"));
+const Home = lazyRoute(() => import("./routes/index"));
+const SignIn = lazyRoute(() => import("./routes/sign-in"));
+const SessionBoard = lazyRoute(() => import("./routes/sessions/$code"));
+const SessionResults = lazyRoute(() => import("./routes/sessions/$code.results"));
+const ToS = lazyRoute(() => import("./routes/tos"));
+const Policy = lazyRoute(() => import("./routes/policy"));
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
