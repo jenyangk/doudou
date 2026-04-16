@@ -23,6 +23,7 @@ export default function SessionBoard() {
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   const [presenceCount, setPresenceCount] = createSignal(0);
+  const [countdown, setCountdown] = createSignal<string | null>(null);
 
   const isOwner = () => session()?.createdBy === authSession()?.data?.user?.id;
   const currentRound = () => rounds().find((r) => r.roundNumber === session()?.currentRound);
@@ -93,6 +94,32 @@ export default function SessionBoard() {
           break;
       }
     });
+
+    // Countdown timer
+    createEffect(() => {
+      const sess = session();
+      const round = currentRound();
+      if (!sess?.votingDurationMinutes || round?.status !== "voting" || !round?.votingStartedAt) {
+        setCountdown(null);
+        return;
+      }
+
+      const endTime = new Date(round.votingStartedAt).getTime() + sess.votingDurationMinutes * 60 * 1000;
+
+      const interval = setInterval(() => {
+        const remaining = Math.max(0, endTime - Date.now());
+        if (remaining <= 0) {
+          setCountdown(null);
+          clearInterval(interval);
+          return;
+        }
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        setCountdown(`${mins}:${secs.toString().padStart(2, "0")}`);
+      }, 1000);
+
+      onCleanup(() => clearInterval(interval));
+    });
   });
 
   return (
@@ -130,6 +157,9 @@ export default function SessionBoard() {
                         </span>
                       )}
                     </StatusBanner>
+                    <Show when={countdown()}>
+                      <Badge variant="accent">⏱ {countdown()}</Badge>
+                    </Show>
                     <Show when={presenceCount() > 0}>
                       <Badge variant="secondary">👥 {presenceCount()}</Badge>
                     </Show>

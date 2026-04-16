@@ -8,6 +8,7 @@ import { ConfettiCanvas } from "../../components/ConfettiCanvas";
 import { staggerIn, revealSlideFromLeft, revealSlideFromRight, revealScaleUp } from "../../lib/animations";
 import type { SessionResponse, ResultItem, RoundResponse } from "@shared/types";
 import gsap from "gsap";
+import toast from "solid-toast";
 
 export default function Results() {
   const params = useParams({ from: "/sessions/$code/results" });
@@ -105,6 +106,31 @@ export default function Results() {
     }
   });
 
+  const shareResults = async () => {
+    const items = results();
+    const sess = session();
+    if (!sess || items.length === 0) return;
+
+    const top3 = items.slice(0, 3);
+    const medals = ["🥇", "🥈", "🥉"];
+    const text = `${sess.name} Results\n\n` +
+      top3.map((item, i) => `${medals[i]} ${item.filename} — ${item.voteCount} votes`).join("\n") +
+      `\n\nPowered by DouDou`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${sess.name} Results`, text });
+      } catch { /* cancelled */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success("Results copied!");
+      } catch {
+        toast.error("Failed to copy");
+      }
+    }
+  };
+
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     loadResults(tab);
@@ -182,6 +208,14 @@ export default function Results() {
                 </p>
               </div>
             </Show>
+          </div>
+        </Show>
+
+        <Show when={results().length > 0}>
+          <div class="text-center mt-6">
+            <Button variant="ghost" onClick={shareResults}>
+              📤 Share Results
+            </Button>
           </div>
         </Show>
 
