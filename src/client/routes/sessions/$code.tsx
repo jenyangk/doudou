@@ -6,7 +6,8 @@ import { createSessionSocket } from "../../lib/ws";
 import { Gallery } from "../../components/Gallery";
 import { ImageUploader } from "../../components/ImageUploader";
 import { SessionDashboard } from "../../components/SessionDashboard";
-import { Button } from "../../components/ui/Button";
+import { StatusBanner } from "../../components/ui/StatusBanner";
+import { PageTransition } from "../../components/PageTransition";
 import type { SessionResponse, ImageResponse, VoteResponse } from "@shared/types";
 import toast from "solid-toast";
 
@@ -79,54 +80,70 @@ export default function SessionBoard() {
   });
 
   return (
-    <div class="container mx-auto px-4 py-4">
-      <Show when={!loading()} fallback={<div class="text-center py-12 text-gray-500">Loading session...</div>}>
-        <Show when={!error()} fallback={<div class="text-center py-12 text-red-500">{error()}</div>}>
-          <Show when={session()}>
-            {(sess) => (
-              <>
-                <div class={`rounded-lg p-2 mb-4 text-center text-sm font-medium ${
-                  sess().votingOpen ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                }`}>
-                  {sess().votingOpen ? (
-                    <span>Voting Open — {sess().maxVotesPerUser - myVotes().length} votes remaining</span>
-                  ) : (
-                    <span>
-                      Voting Closed —{" "}
-                      <Link to="/sessions/$code/results" params={{ code: params.code }} class="underline">
-                        View Results
-                      </Link>
-                    </span>
-                  )}
-                </div>
+    <PageTransition>
+      <div class="container mx-auto px-4 py-4">
+        <Show when={!loading()} fallback={
+          <div class="text-center py-12 font-body text-dd-text-muted">Loading session...</div>
+        }>
+          <Show when={!error()} fallback={
+            <div class="text-center py-12 font-body text-dd-primary">{error()}</div>
+          }>
+            <Show when={session()}>
+              {(sess) => (
+                <div class="space-y-4">
+                  {/* Status Banner */}
+                  <StatusBanner variant={sess().votingOpen ? "success" : "warning"}>
+                    {sess().votingOpen ? (
+                      <span>Voting Open — {sess().maxVotesPerUser - myVotes().length} votes remaining</span>
+                    ) : (
+                      <span>
+                        Voting Closed —{" "}
+                        <Link
+                          to="/sessions/$code/results"
+                          params={{ code: params.code }}
+                          class="underline hover:no-underline"
+                        >
+                          View Results
+                        </Link>
+                      </span>
+                    )}
+                  </StatusBanner>
 
-                <Show when={isOwner()}>
-                  <SessionDashboard
-                    session={sess()}
-                    imageCount={images().length}
-                    onSessionUpdate={fetchData}
-                  />
-                </Show>
+                  {/* Responsive layout: stacked on mobile, sidebar on md+ */}
+                  <div class="flex flex-col md:flex-row gap-4">
+                    {/* Main: Gallery */}
+                    <div class="flex-1 min-w-0">
+                      <Gallery
+                        images={images()}
+                        votes={myVotes()}
+                        sessionId={sess().id}
+                        votingOpen={sess().votingOpen}
+                        maxVotes={sess().maxVotesPerUser}
+                        onVoteChange={fetchData}
+                      />
+                    </div>
 
-                <Show when={sess().uploadOpen}>
-                  <div class="my-4">
-                    <ImageUploader sessionId={sess().id} onUploadComplete={fetchData} />
+                    {/* Sidebar: Dashboard + Uploader (on md+) */}
+                    <div class="w-full md:w-72 shrink-0 space-y-4 order-first md:order-last">
+                      <Show when={isOwner()}>
+                        <SessionDashboard
+                          session={sess()}
+                          imageCount={images().length}
+                          onSessionUpdate={fetchData}
+                        />
+                      </Show>
+
+                      <Show when={sess().uploadOpen}>
+                        <ImageUploader sessionId={sess().id} onUploadComplete={fetchData} />
+                      </Show>
+                    </div>
                   </div>
-                </Show>
-
-                <Gallery
-                  images={images()}
-                  votes={myVotes()}
-                  sessionId={sess().id}
-                  votingOpen={sess().votingOpen}
-                  maxVotes={sess().maxVotesPerUser}
-                  onVoteChange={fetchData}
-                />
-              </>
-            )}
+                </div>
+              )}
+            </Show>
           </Show>
         </Show>
-      </Show>
-    </div>
+      </div>
+    </PageTransition>
   );
 }
