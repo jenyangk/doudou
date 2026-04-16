@@ -86,7 +86,7 @@ export function ImageUploader(props: ImageUploaderProps) {
           class="hidden"
           onChange={(e) => handleFiles(e.currentTarget.files)}
         />
-        <Button variant="outline" size="sm" onClick={() => fileInput.click()}>
+        <Button variant="ghost" size="sm" onClick={() => fileInput.click()}>
           Choose File
         </Button>
       </Show>

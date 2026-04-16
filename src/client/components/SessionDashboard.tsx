@@ -40,7 +40,7 @@ export function SessionDashboard(props: SessionDashboardProps) {
           {props.session.uploadOpen ? "Uploads Open" : "Uploads Closed"}
         </span>
         <div class="text-right">
-          <Button size="sm" variant="outline" onClick={toggleUploads}>
+          <Button size="sm" variant="ghost" onClick={toggleUploads}>
             {props.session.uploadOpen ? "🔓" : "🔒"}
           </Button>
         </div>
@@ -49,7 +49,7 @@ export function SessionDashboard(props: SessionDashboardProps) {
           {props.session.votingOpen ? "Voting Open" : "Voting Closed"}
         </span>
         <div class="text-right">
-          <Button size="sm" variant="outline" onClick={toggleVoting}>
+          <Button size="sm" variant="ghost" onClick={toggleVoting}>
             {props.session.votingOpen ? "🔓" : "🔒"}
           </Button>
         </div>
