@@ -1,5 +1,6 @@
 import { Button } from "./ui/Button";
 import { castVote, removeVote } from "../lib/api";
+import { voteStamp } from "../lib/animations";
 import toast from "solid-toast";
 
 interface VoteButtonProps {
@@ -11,12 +12,15 @@ interface VoteButtonProps {
 }
 
 export function VoteButton(props: VoteButtonProps) {
+  let ref!: HTMLDivElement;
+
   const handleClick = async () => {
     try {
       if (props.voted) {
         await removeVote(props.sessionId, props.imageId);
       } else {
         await castVote(props.sessionId, { imageId: props.imageId });
+        if (ref) voteStamp(ref);
       }
       props.onVoteChange?.();
     } catch (err: any) {
@@ -25,13 +29,15 @@ export function VoteButton(props: VoteButtonProps) {
   };
 
   return (
-    <Button
-      size="sm"
-      variant={props.voted ? "default" : "outline"}
-      disabled={props.disabled && !props.voted}
-      onClick={handleClick}
-    >
-      {props.voted ? "★ Voted" : "☆ Vote"}
-    </Button>
+    <div ref={ref} class="inline-block">
+      <Button
+        size="sm"
+        variant={props.voted ? "accent" : "primary"}
+        disabled={props.disabled && !props.voted}
+        onClick={handleClick}
+      >
+        {props.voted ? "★ Voted" : "☆ Vote"}
+      </Button>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { uploadImage } from "../lib/api";
 import { Button } from "./ui/Button";
+import { ProgressBar } from "./ui/ProgressBar";
 import toast from "solid-toast";
 
 interface ImageUploaderProps {
@@ -52,8 +53,8 @@ export function ImageUploader(props: ImageUploaderProps) {
 
   return (
     <div
-      class={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-        dragging() ? "border-gray-900 bg-gray-50" : "border-gray-300"
+      class={`border-[3px] border-dashed rounded-dd-card p-6 text-center transition-colors ${
+        dragging() ? "border-dd-primary bg-dd-accent/10" : "border-dd-muted-border bg-white"
       }`}
       onDragOver={(e) => {
         e.preventDefault();
@@ -65,18 +66,15 @@ export function ImageUploader(props: ImageUploaderProps) {
       <Show
         when={!uploading()}
         fallback={
-          <div class="space-y-2">
-            <p class="text-sm text-gray-600">Uploading... {progress()}%</p>
-            <div class="w-full bg-gray-200 rounded-full h-2">
-              <div
-                class="bg-gray-900 h-2 rounded-full transition-all"
-                style={{ width: `${progress()}%` }}
-              />
-            </div>
+          <div class="space-y-3">
+            <p class="text-sm font-body font-medium text-dd-text">
+              Uploading... {progress()}%
+            </p>
+            <ProgressBar percent={progress()} />
           </div>
         }
       >
-        <p class="text-sm text-gray-500 mb-2">
+        <p class="text-sm font-body text-dd-text-muted mb-3">
           Drag & drop an image here, or click to browse
         </p>
         <input
