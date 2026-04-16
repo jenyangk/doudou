@@ -113,3 +113,84 @@ export function progressFill(el: HTMLElement, percent: number) {
     } : undefined,
   });
 }
+
+// --- Lightbox animations ---
+
+export function lightboxOpen(el: HTMLElement) {
+  return gsap.fromTo(el,
+    { scale: 0.9, opacity: 0 },
+    { scale: 1, opacity: 1, duration: 0.3, ease: "power2.out" }
+  );
+}
+
+export function lightboxClose(el: HTMLElement) {
+  return gsap.to(el, {
+    scale: 0.9,
+    opacity: 0,
+    duration: 0.2,
+    ease: "power2.in",
+  });
+}
+
+export function imageNavigate(outEl: HTMLElement, inEl: HTMLElement) {
+  const tl = gsap.timeline();
+  tl.to(outEl, { opacity: 0, duration: 0.15, ease: "power2.in" });
+  tl.fromTo(inEl, { opacity: 0 }, { opacity: 1, duration: 0.15, ease: "power2.out" });
+  return tl;
+}
+
+// --- Vote animations ---
+
+export function goldenPulse(el: HTMLElement) {
+  gsap.fromTo(el,
+    { scale: 1, backgroundColor: "#FFCB47" },
+    { scale: 1.2, duration: 0.15, ease: "power2.out",
+      onComplete: () => {
+        gsap.to(el, { scale: 1, duration: 0.3, ease: "elastic.out(1, 0.5)" });
+      }
+    }
+  );
+}
+
+export function voteUndo(el: HTMLElement) {
+  return gsap.to(el, {
+    scale: 0,
+    opacity: 0,
+    duration: 0.25,
+    ease: "power2.in",
+  });
+}
+
+export function countdownPulse(el: HTMLElement) {
+  gsap.fromTo(el,
+    { scale: 1 },
+    { scale: 1.15, duration: 0.15, ease: "power2.out",
+      onComplete: () => {
+        gsap.to(el, { scale: 1, duration: 0.3, ease: "elastic.out(1, 0.4)" });
+      }
+    }
+  );
+}
+
+// --- Reveal animations ---
+
+export function revealSlideFromLeft(el: HTMLElement) {
+  return gsap.fromTo(el,
+    { x: -100, opacity: 0 },
+    { x: 0, opacity: 1, duration: 0.4, ease: "back.out(1.5)" }
+  );
+}
+
+export function revealSlideFromRight(el: HTMLElement) {
+  return gsap.fromTo(el,
+    { x: 100, opacity: 0 },
+    { x: 0, opacity: 1, duration: 0.4, ease: "back.out(1.5)" }
+  );
+}
+
+export function revealScaleUp(el: HTMLElement) {
+  return gsap.fromTo(el,
+    { scale: 0, opacity: 0 },
+    { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(2)" }
+  );
+}
