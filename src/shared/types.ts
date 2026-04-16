@@ -11,6 +11,10 @@ export interface CompetitionSession {
   voting_open: number; // 0 or 1
   created_at: string;
   updated_at: string;
+  total_rounds: number;
+  current_round: number;
+  voting_duration_minutes: number | null;
+  expires_at: string | null;
 }
 
 export interface SessionImage {
@@ -20,6 +24,7 @@ export interface SessionImage {
   r2_key: string;
   filename: string;
   mime_type: string;
+  round_id: string;
   created_at: string;
 }
 
@@ -28,6 +33,16 @@ export interface Vote {
   session_id: string;
   user_id: string;
   image_id: string;
+  round_id: string;
+  created_at: string;
+}
+
+export interface Round {
+  id: string;
+  session_id: string;
+  round_number: number;
+  status: "pending" | "uploading" | "voting" | "closed";
+  voting_started_at: string | null;
   created_at: string;
 }
 
@@ -47,6 +62,19 @@ export interface SessionResponse {
   maxVotesPerUser: number;
   uploadOpen: boolean;
   votingOpen: boolean;
+  totalRounds: number;
+  currentRound: number;
+  votingDurationMinutes: number | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface RoundResponse {
+  id: string;
+  sessionId: string;
+  roundNumber: number;
+  status: "pending" | "uploading" | "voting" | "closed";
+  votingStartedAt: string | null;
   createdAt: string;
 }
 
@@ -57,6 +85,7 @@ export interface ImageResponse {
   r2Key: string;
   filename: string;
   mimeType: string;
+  roundId: string;
   createdAt: string;
 }
 
@@ -64,6 +93,7 @@ export interface VoteResponse {
   id: string;
   imageId: string;
   userId: string;
+  roundId: string;
   createdAt: string;
 }
 
@@ -82,7 +112,8 @@ export type WsEvent =
   | { type: "vote-cast"; data: { imageId: string; userId: string } }
   | { type: "vote-removed"; data: { imageId: string; userId: string } }
   | { type: "session-updated"; data: { uploadOpen: boolean; votingOpen: boolean } }
-  | { type: "presence"; data: { count: number } };
+  | { type: "round-advanced"; data: { roundNumber: number; status: string } }
+  | { type: "presence-count"; data: { count: number } };
 
 // --- Cloudflare env bindings ---
 
