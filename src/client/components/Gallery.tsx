@@ -43,7 +43,7 @@ export function Gallery(props: GalleryProps) {
         <div ref={gridRef} class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <For each={props.images}>
             {(image) => (
-              <div class="relative aspect-square rounded-dd-photo overflow-hidden group cursor-pointer">
+              <div data-image-card class="relative aspect-square rounded-dd-photo overflow-hidden group cursor-pointer">
                 <img
                   src={getImageUrl(image.r2Key)}
                   alt={image.filename}
@@ -63,7 +63,7 @@ export function Gallery(props: GalleryProps) {
                   </div>
                 </Show>
                 <Show when={votedImageIds().has(image.id)}>
-                  <div class="absolute top-2 right-2 bg-dd-accent rounded-full w-8 h-8 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                  <div data-star-badge class="absolute top-2 right-2 bg-dd-accent rounded-full w-8 h-8 flex items-center justify-center text-white text-sm font-bold shadow-md">
                     ★
                   </div>
                 </Show>

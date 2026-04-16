@@ -1,6 +1,6 @@
 import { Button } from "./ui/Button";
 import { castVote, removeVote } from "../lib/api";
-import { voteStamp } from "../lib/animations";
+import { voteStamp, voteUndo, goldenPulse } from "../lib/animations";
 import toast from "solid-toast";
 
 interface VoteButtonProps {
@@ -17,10 +17,16 @@ export function VoteButton(props: VoteButtonProps) {
   const handleClick = async () => {
     try {
       if (props.voted) {
+        if (ref) await voteUndo(ref);
         await removeVote(props.sessionId, props.imageId);
       } else {
         await castVote(props.sessionId, { imageId: props.imageId });
-        if (ref) voteStamp(ref);
+        if (ref) {
+          voteStamp(ref);
+          // Golden pulse on the star badge (parent will handle via class)
+          const badge = ref.closest("[data-image-card]")?.querySelector("[data-star-badge]") as HTMLElement | null;
+          if (badge) goldenPulse(badge);
+        }
       }
       props.onVoteChange?.();
     } catch (err: any) {
@@ -29,12 +35,15 @@ export function VoteButton(props: VoteButtonProps) {
   };
 
   return (
-    <div ref={ref} class="inline-block">
+    <div ref={ref}>
       <Button
+        variant={props.voted ? "accent" : "ghost"}
         size="sm"
-        variant={props.voted ? "accent" : "primary"}
-        disabled={props.disabled && !props.voted}
-        onClick={handleClick}
+        disabled={!props.voted && props.disabled}
+        onClick={(e: MouseEvent) => {
+          e.stopPropagation();
+          handleClick();
+        }}
       >
         {props.voted ? "★ Voted" : "☆ Vote"}
       </Button>
