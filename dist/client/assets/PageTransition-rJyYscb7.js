@@ -1,0 +1,1 @@
+import{o as n,D as o,i,t as s,e as p}from"./index-C-cahXXv.js";var f=s("<div style=opacity:0>");function u(a){let t;return n(()=>{o(t)}),(()=>{var e=f(),r=t;return typeof r=="function"?p(r,e):t=e,i(e,()=>a.children),e})()}export{u as P};

@@ -1,0 +1,3 @@
+import{o as s,E as r,i as n,p as c,A as i,t as o,e as l}from"./index-C-cahXXv.js";var f=o("<span>");const m={primary:"bg-dd-primary/15 text-dd-primary",accent:"bg-dd-accent/25 text-dd-accent-shadow",secondary:"bg-dd-secondary/15 text-dd-secondary",success:"bg-dd-success/15 text-dd-success"};function u(a){let t;return s(()=>{a.animate&&r(t)}),(()=>{var e=f(),d=t;return typeof d=="function"?l(d,e):t=e,n(e,()=>a.children),c(()=>i(e,`inline-flex items-center rounded-dd-pill px-3 py-1 text-sm font-display font-bold
+              ${m[a.variant??"primary"]}
+              ${a.class??""}`)),e})()}export{u as B};
